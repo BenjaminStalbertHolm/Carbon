@@ -6,6 +6,8 @@ extends SceneTree
 const DocModel := preload("res://scripts/logic/doc_model.gd")
 const CadenceModel := preload("res://scripts/logic/cadence_model.gd")
 const TypewriterModel := preload("res://scripts/logic/typewriter_model.gd")
+const Endings := preload("res://scripts/logic/endings.gd")
+const Content := preload("res://scripts/logic/content.gd")
 
 var _failures := 0
 var _ran := false
@@ -78,6 +80,7 @@ func _run() -> void:
 	_scenario_defaults()
 	_scenario_retired_word()
 	_scenario_free_mail()
+	_scenario_ending_c()
 
 	print("RESULT: %s, %d failure(s)" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	quit(1 if _failures > 0 else 0)
@@ -153,3 +156,28 @@ func _scenario_free_mail() -> void:
 	_check(stamps.size() == 1 and String(stamps[0].word) == "NO SUCH ADDRESSEE", "the returned free sheet carries the NO SUCH ADDRESSEE stamp")
 	_check_eq(String(stamps[0].ink), "red", "the NO SUCH ADDRESSEE impression is red")
 	_check_eq(_gs.free_mail_sent.size(), 0, "free mail is cleared after the return")
+
+
+## Spec 20 test 4 (logic): redact only DOBRA, J. ABEL and the next of kin, then the
+## Ending C lines must read RECORD RESTORED, DOBRA KASIMIR, J. ABEL, next of kin, player.
+func _scenario_ending_c() -> void:
+	print("-- ending C lines (test 4)")
+	_dd.start_new_game(4)
+	_gs.player_name_raw = "ANNA MARIA TESTER"
+	_gs.next_of_kin_raw = "JOHN TESTER"
+	var ro_results := {
+		"RO-2": {"entries": {"03": true, "05": false, "09": false, "10": false}, "listed": ["03", "05", "09", "10"]},
+		"RO-3": {"entries": {"07": true, "08": false, "F04": false}, "listed": ["07", "08", "F04"]},
+		"RO-4": {"entries": {"02": true, "04": false, "06": false, "08": false}, "listed": ["02", "04", "06", "08"]},
+	}
+	var registers := {
+		"RO-2": [{"key": "03", "name": "DOBRA, KASIMIR"}, {"key": "05", "name": "FELL, ODETTE"}, {"key": "09", "name": "MORAVEC, AUREL"}, {"key": "10", "name": "MORAVEC, ILSE"}],
+		"RO-3": [{"key": "07", "name": "J. ABEL", "clerk_desk": 7}, {"key": "08", "name": "N. FERRAND", "clerk_desk": 8}, {"key": "F04", "name": "H. VANCE", "clerk_desk": null}],
+		"RO-4": [{"key": "02", "name": "{NEXT_OF_KIN}"}, {"key": "04", "name": "HALVORSEN, PETRA"}, {"key": "06", "name": "WEISS, CORA"}, {"key": "08", "name": "KOVAC, PAVEL"}],
+	}
+	var lines: Array = Endings.ending_c_lines(ro_results, registers, "ANNA MARIA TESTER", _tt.subst_callable(), "RECORD RESTORED")
+	_check_eq(lines, ["RECORD RESTORED", "DOBRA, KASIMIR", "J. ABEL", "JOHN TESTER", "ANNA MARIA TESTER"], "Ending C lines match spec 20 test 4 in order")
+	_check(not Endings.ending_c_available(2), "Ending C is not available with two carbons kept")
+	_check(Endings.ending_c_available(3), "Ending C is available with three carbons kept")
+	_check(Endings.desk4_redacted({"04": true}), "Ending A applies when the Desk 4 entry is redacted")
+	_check_eq(Endings.desks_to_restore(ro_results, registers), ["7"], "the redacted desk 7 clerk is restored for Ending C")
