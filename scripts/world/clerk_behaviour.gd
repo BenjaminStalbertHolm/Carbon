@@ -16,8 +16,10 @@ extends Node
 const FPS := 15.0
 const HAND_OFFSET := 0.02
 const RESUME_S := 0.5
-const KEY_DB := -34.0
-const CR_DB := -32.0
+## Gains, not levels: key_clack peaks at -10 dBFS and carriage_return at -12 dBFS in their files,
+## so the played levels of -34 and -32 dBFS (spec 9.4) are -24 and -20 dB (QUESTION-29).
+const KEY_DB := -24.0
+const CR_DB := -20.0
 const FREEZE_FROM_DAY := 2
 const TYPING_DESKS := [1, 2, 3, 5, 6, 7, 8, 9, 10, 11]
 ## Hand offsets per pose A, B, C, D (spec 5.4): A left down / right up, C right down / left up.

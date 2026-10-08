@@ -735,8 +735,11 @@ func _return_free_mail(day: int) -> void:
 		if d.is_empty():
 			continue
 		var addressee := String(_strings().no_such_addressee)
+		# Same style as a stamp (spec 8.4 and 8.1): rotation -6 to +6 degrees, opacity 0.75 to 0.95.
+		var stamp_rot: float = g.rng.randf_range(-6.0, 6.0)
+		var stamp_a: float = g.rng.randf_range(0.75, 0.95)
 		d.pages[0].stamps.append({"word": addressee, "result": addressee, "ink": "red",
-			"x": Doc.PAGE_W * 0.5, "y": Doc.PAGE_H / 6.0, "rot": 0.0, "a": 0.9, "seed": g.rng.randi()})
+			"x": Doc.PAGE_W * 0.5, "y": Doc.PAGE_H / 6.0, "rot": stamp_rot, "a": stamp_a, "seed": g.rng.randi()})
 		g.place(String(id), "inbox")
 	g.free_mail_sent = []
 

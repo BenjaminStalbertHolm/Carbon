@@ -9,7 +9,8 @@ extends Node
 const ClockMath := preload("res://scripts/logic/clock_math.gd")
 
 const MOVE_S := 2.0
-const TICK_DB := -38.0
+## clock_tick's file already peaks at -38 dBFS (spec 11 table), so it plays at 0 dB gain.
+const TICK_DB := 0.0
 
 var _hall: Node3D = null
 var _hour: Node3D = null
