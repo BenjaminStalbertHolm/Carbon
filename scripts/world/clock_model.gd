@@ -18,6 +18,8 @@ static func build(parent: Node3D, time_hhmm: String = "08:58") -> Node3D:
 	var clock := Geo.group(parent, "Clock", CENTRE)
 	var face := Geo.disc(RADIUS, 16, face_texture(), Geo.WHITE, "Face")
 	Geo.add(clock, face)
+	# Backing body from the wall face (z = -6.0) to just behind the face, so the 0.12 m gap is filled (QUESTION-18).
+	Geo.add(clock, Geo.cylinder(RADIUS, 0.114, 8, COL_FACE, "Backing", true, true), Vector3(0, 0, -0.063), Vector3(90, 0, 0))
 	var angles := ClockMath.hand_angles(time_hhmm)
 	# Degrees clockwise from 12 o'clock; a negative Z rotation turns clockwise as seen from the room.
 	var hour := Geo.group(parent, "ClockHourHand", CENTRE, Vector3(0, 0, -float(angles["hour"])))

@@ -13,7 +13,8 @@ const COL_PLATEN := Color("#141414")
 
 const KEY_BASE_Y := 0.86
 const KEY_PITCH := 0.032
-const ROW_STAGGER := 0.008
+## Each key row sits one key height higher than the row nearer the player (QUESTION-14).
+const ROW_STEP := 0.012
 ## Desk-relative z of the four key rows, row 0 (numbers) furthest from the player.
 const ROW_Z := [0.12, 0.15, 0.18, 0.21]
 const SPACE_Z := 0.24
@@ -30,16 +31,18 @@ static func build(parent: Node3D, node_name: String, desk_centre: Vector3, atlas
 	return tw
 
 
-## 40 keycaps: four staggered rows of ten, each with its legend from the atlas.
+## 40 keycaps: four rows of ten in height steps, each with its legend from the atlas.
+## Row 0 (numbers) is the highest step; row 3, nearest the player, is the lowest.
 static func _keys(tw: Node3D, atlas: Texture2D) -> void:
 	var keys := Geo.group(tw, "Keys")
 	var side_uv := TextTex.keycap_side_uv()
 	for r in 4:
+		var y := KEY_BASE_Y + 0.006 + ROW_STEP * float(3 - r)
 		for c in 10:
-			var x := (float(c) - 4.5) * KEY_PITCH + float(r) * ROW_STAGGER
+			var x := (float(c) - 4.5) * KEY_PITCH
 			var cap := Geo.cylinder(0.009, 0.012, 8, Geo.WHITE, "Key%d%d" % [r, c], true, false,
 				atlas, side_uv, TextTex.keycap_uv(r, c))
-			Geo.add(keys, cap, Vector3(x, KEY_BASE_Y + 0.006, ROW_Z[r]))
+			Geo.add(keys, cap, Vector3(x, y, ROW_Z[r]))
 
 
 static func _carriage(tw: Node3D) -> void:

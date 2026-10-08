@@ -80,6 +80,7 @@ func _run() -> void:
 	_scenario_defaults()
 	_scenario_retired_word()
 	_scenario_free_mail()
+	_scenario_nb4()
 	_scenario_ending_c()
 
 	print("RESULT: %s, %d failure(s)" % ["PASS" if _failures == 0 else "FAIL", _failures])
@@ -156,6 +157,20 @@ func _scenario_free_mail() -> void:
 	_check(stamps.size() == 1 and String(stamps[0].word) == "NO SUCH ADDRESSEE", "the returned free sheet carries the NO SUCH ADDRESSEE stamp")
 	_check_eq(String(stamps[0].ink), "red", "the NO SUCH ADDRESSEE impression is red")
 	_check_eq(_gs.free_mail_sent.size(), 0, "free mail is cleared after the return")
+
+
+## Spec 14.10: the Day 4 notebook gains a paragraph only when question 4 was answered NO.
+func _scenario_nb4() -> void:
+	print("-- notebook NB-4 (spec 14.10)")
+	_dd.start_new_game(14)
+	_gs.p1_q4 = "NO"
+	var no_paras: Array = _dd.instantiate("NB-4").pages[0].paragraphs
+	_check_eq(no_paras.size(), 2, "NB-4 gains a paragraph when question 4 was NO")
+	_check_eq(String(no_paras[1]), "They asked me if I'd worked here before. I said no as well.", "the appended NB-4 paragraph reads as in spec 14.10")
+	_gs.p1_q4 = "YES"
+	_check_eq(_dd.instantiate("NB-4").pages[0].paragraphs.size(), 1, "NB-4 is unchanged when question 4 was YES")
+	_gs.p1_q4 = "OTHER"
+	_check_eq(_dd.instantiate("NB-4").pages[0].paragraphs.size(), 1, "NB-4 is unchanged when question 4 was OTHER")
 
 
 ## Spec 20 test 4 (logic): redact only DOBRA, J. ABEL and the next of kin, then the

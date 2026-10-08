@@ -221,12 +221,28 @@ func instantiate(doc_id: String) -> Dictionary:
 		return Doc.new_doc(doc_id, "printed")
 	if doc_id == "RO-4":
 		_expand_ro4(spec)
+	if spec.has("append_if"):
+		_apply_append_if(spec)
 	var st := _strings()
 	return Doc.build_doc(doc_id, spec, _tt().subst_callable(), st.memo_header, String(st.memo_re_line), _app_layout())
 
 
 func _app_layout() -> Array:
 	return Content.layouts().app_r2.lines
+
+
+## Spec 14.10: a document may carry {state, value, paragraphs}. When the named
+## GameState variable holds the value, the paragraphs are added to its last page.
+func _apply_append_if(spec: Dictionary) -> void:
+	var rule: Dictionary = spec.append_if
+	var current := String(_gs().get(String(rule.state)))
+	if current != String(rule.value):
+		return
+	var pages: Array = spec.pages
+	var last: Dictionary = pages[pages.size() - 1]
+	var paras: Array = last.paragraphs
+	for p in rule.paragraphs:
+		paras.append(String(p))
 
 
 func _expand_ro4(spec: Dictionary) -> void:

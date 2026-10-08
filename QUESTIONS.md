@@ -92,3 +92,93 @@ Options you see: A: the source keeps the em dash, so the player's best typing (a
 
 Decision (opus-agent): A — follow the literal reading. The source keeps the em dash, and §7.8 normalisation stays exactly as specified (uppercase, collapse whitespace, trim). The em dash therefore costs one edit (about 0.003 on C-22's roughly 370 characters), so a faithful copy scores just under 1.0. The player never sees this: accuracy appears only through the morning-memo bands (§14.6), and the score stays far above the 0.98 ACCEPTABLE threshold. B and C would add a normalisation step the spec does not have. (There is no contradiction in the spec: §7.8 never promises that 1.0 is reachable.)
 Placeholder in code/config: matches. `TextNorm.normalise()` and `TextNorm.accuracy()` in `scripts/logic/text_norm.gd` need no change. In `tests/unit/test_playthrough_compliant.gd`, expect the reduced value, not 1.0: the T-2 accuracy is exactly 1 − 1/len(normalised C-22 source), which is ≥ 0.98 and < 1.0. The current check (≥ 0.99) is acceptable. Optionally tighten it to `< 1.0`, and keep the M3 check for `TRANSCRIPTION T-2: ACCEPTABLE.`
+
+## QUESTION-11
+Section: §5.4 (Desk 4 items table)
+Context: Several Desk 4 item footprints overlap at the exact table coordinates: the lamp base and the read stack, the stamp rack and ink pad over the blank paper tray, and the correction fluid over the carbon spot. The hall is built at the exact coordinates.
+Question: Keep the exact table coordinates, even though items overlap?
+Options you see: A: keep the exact coordinates (current) / B: nudge the overlapping items apart by the smallest offset / C: something else
+
+Decision (opus-agent): A — keep the exact (x, z) coordinates. §0 rule 4 says numbers are exact. The overlaps are a few centimetres at the edges and read naturally on a cluttered desk (paper under the lamp base, the stamp rack resting at the tray's edge). Every overlapping pair keeps enough uncovered area to click. Two conditions: flat paper stacks render beneath the solid items they overlap, with no coplanar faces (offset ≤ 1 mm vertically if needed, to avoid z-fighting), and the click raycast takes the nearest collider. The Desk 4 tube receiver also overlaps the lamp base at the left-back corner; treat it the same way.
+Placeholder in code/config: matches. `scripts/world/desk.gd` needs no change unless z-fighting is visible.
+
+## QUESTION-12
+Section: §8.12 (desk lamp)
+Context: "SpotLight3D ... pointing down 75°". The hall reads this as 75° below horizontal.
+Question: What does "pointing down 75°" mean?
+Options you see: A: 75° below horizontal (current) / B: 75° from straight down / C: something else
+
+Decision (opus-agent): A — 75° below horizontal (pitch −75°). "Pointing down N°" is the usual way to state a depression angle from horizontal. B would aim the beam only 15° below horizontal, so with a 1.5 m range it would mostly miss the desk top a desk lamp exists to light.
+Placeholder in code/config: matches. No change in `scripts/world/hall_c.gd`.
+
+## QUESTION-13
+Section: §5.4 (Desk 4 typewriter) with §8.9 (initial occupancy)
+Context: The spec does not say whether a sheet is loaded in the Desk 4 typewriter when Day 1 starts. The hall builds the paper and hides it.
+Question: Is a sheet loaded in the typewriter at the start of Day 1?
+Options you see: A: no, the paper is hidden until a sheet is loaded (current) / B: a blank sheet is loaded at the start / C: something else
+
+Decision (opus-agent): A — no sheet is loaded at the start of Day 1 (or of any day). §5.4 shows the paper quad only "when loaded", and §6.3 covers the no-paper case. A preloaded sheet would be an unspecified document, and it would interfere with the empty-typewriter condition of D3-U3 and D4-U3 (QUESTION-7).
+Placeholder in code/config: matches. No change.
+
+## QUESTION-14
+Section: §5.4 (typewriter keyboard)
+Context: The keyboard has "4 stepped rows" but gives no step size. The hall offsets each row by 8 mm in x, at equal height.
+Question: How is each keyboard row stepped?
+Options you see: A: each row offset 8 mm in x, at equal height (current) / B: rows at the same x, with a height step / C: something else
+
+Decision (opus-agent): B — "stepped" means terraced in height: each row sits one step higher than the row south of it (row 1, nearest the player, lowest; row 4 highest), with no x offset. Step = 0.012 m, the key height §5.4 already gives, so no new number is invented. The 8 mm x stagger is not in the spec, and equal heights do not satisfy "stepped".
+Placeholder in code/config: does not match. In `scripts/world/typewriter_model.gd`, set `ROW_STAGGER` to 0 (or remove it) and add 0.012 m × (rows north of row 1) to each key row's y. Keys use `ROW_Z` index r, where r = 0 is row 4 (numbers), so y = `KEY_BASE_Y` + 0.006 + 0.012 × (3 − r). The space bar stays at row-1 height.
+
+## QUESTION-15
+Section: §5.4 (stamp rack and ink pad)
+Context: The stamp handle label background, the stamp base and the ink pad colour are unspecified. The hall uses paper #E6DFC8 for the label background, #2A2A2A for the stamp base, and the spec's #2A2A2A for the ink pad.
+Question: What colours should the stamp label background and stamp base use?
+Options you see: A: as the hall chose (current) / B: stamp base in the brass colour #8C7340 and label background in the paper colour / C: something else
+
+Decision (opus-agent): A — label background paper `#E6DFC8`, stamp base `#2A2A2A`, and ink pad `#2A2A2A` as the spec gives it. Both choices reuse existing spec colours and keep the coloured band as the only distinguishing mark, as §5.4 intends ("identity is learned by the impression"). §5.2 reserves brass for the tube and lamp base, so B would extend a named colour to a use it does not list.
+Placeholder in code/config: matches. No change in `scripts/world/desk.gd` or `scripts/world/text_texture.gd`.
+
+## QUESTION-16
+Section: §5.5 (nameplates)
+Context: The nameplate text size is not given. The text texture is 64×16 px.
+Question: What font size should nameplate text use?
+Options you see: A: fit the text to the plate, up to 10 px (current) / B: a fixed 10 px regardless of length / C: something else
+
+Decision (opus-agent): A — the largest size up to 10 px that fits the 64×16 texture. §8.9 allows names up to 14 characters, which cannot fit at a fixed 10 px in 64 px of Special Elite, and §5.5 requires the text centred and legible, not clipped.
+Placeholder in code/config: matches. No change in `scripts/world/text_texture.gd`.
+
+## QUESTION-17
+Section: §6.1 (doors, EXIT sign, SUPERVISOR label, fluorescent tubes)
+Context: The spec does not give the size of the door handle, the height of the EXIT sign (the hall uses 2.45 m), the size of the SUPERVISOR label, or the size of the fluorescent tube strip. The hall chose sizes in door_model.gd and fixture.gd.
+Question: Should these chosen sizes stand?
+Options you see: A: yes, keep the hall builder's sizes (current) / B: the owner must supply them, so a placeholder stays until then / C: something else
+
+Decision (opus-agent): A — keep the hall builder's sizes as final. They are minor dimensions of objects the spec does define. They fit the given constraints: the sign sits above the 2.1 m door, the label sits inside the glass half (y 1.05–2.1), and the tube strip fits under the 1.2 × 0.25 housing. The owner is not reachable, so B would leave a placeholder that never resolves.
+Placeholder in code/config: matches. No change in `scripts/world/door_model.gd` or `scripts/world/fixture.gd`. Drop any TODO markers for these sizes.
+
+## QUESTION-18
+Section: §6.1 with §8.10 and §8.11 (clock and quota board placement)
+Context: The clock and the quota board are placed 0.12 m off their wall faces with no backing, at the exact centres the spec gives.
+Question: Keep those exact centres?
+Options you see: A: yes, built literally (current) / B: move each onto the wall face / C: something else
+
+Decision (opus-agent): C — keep the exact centres as the front (display) faces, and fill the 0.12 m gap to the wall with a backing body, so nothing floats. Clock: a cylinder r = 0.22, 8 segments, from the wall face (z = −6.0) to z = −5.88, in the clock face colour `#D8D2BE`. Quota board: a box 1.6 × 1.0 × 0.12 from the wall face (x = −9.0) to x = −8.88, in the chalkboard colour `#2C3A30`. This keeps every given number, uses only spec colours, and avoids the visible floating gap that A leaves at oblique views. B would change the given coordinates.
+Placeholder in code/config: does not match. Add the clock backing cylinder in `scripts/world/clock_model.gd`, and the quota-board backing box in `_add_boards()` in `scripts/world/hall_c.gd`. Keep the faces and hands where they are, just in front of the backing, with no coplanar faces.
+
+## QUESTION-19
+Section: §6.1 (tube terminal) and §5.4 (clerk figure)
+Context: The brass tube ends at y 1.10, 0.11 m above the receiver top. The clerk torso's bottom at y 0.50 sits inside the thighs. Both are built literally.
+Question: Keep both as the spec gives them?
+Options you see: A: yes, literal (current) / B: adjust to remove the gap and the overlap / C: something else
+
+Decision (opus-agent): A — keep both literal. The tube gap fits §8.4, where the canister "drops into the receiver": it is the visible drop the arrival animation uses. The torso and thigh overlap is a normal seated hip joint, hidden inside the solid boxes. Neither is a spec contradiction.
+Placeholder in code/config: matches. No change in `scripts/world/tube_terminal_model.gd` or `scripts/world/clerk_figure.gd`.
+
+## QUESTION-20
+Section: §14.9 (Task 2, RO-3 register) with §8.9 (H. VANCE and desks)
+Context: The content worker stored the H. VANCE register row (key F04) with clerk_desk 12. H. VANCE is not a clerk. The Desk 12 nameplate effect is already handled by the H. VANCE rule in §14.7 step 6, and clerk effects use clerk_desk. The implementer has set clerk_desk to null.
+Question: Should the H. VANCE row have a clerk desk?
+Options you see: A: no clerk desk (null), the nameplate rule covers the effect (current) / B: desk 12, as the content worker proposed / C: something else
+
+Decision (opus-agent): A — `clerk_desk` is null for the FORMER 04 / H. VANCE row. §8.9 has no clerk at Desk 12, and the register lists Vance as former Desk 04, not Desk 12. Vance's only effects are those of §14.7 step 6: the Desk 12 nameplate goes blank and the `vance` aliases become bars. B would wrongly trigger clerk effects for Desk 12, including removing the whole desk on Day 5 under step 7.
+Placeholder in code/config: matches. `data/day3.json` already has null; no change.

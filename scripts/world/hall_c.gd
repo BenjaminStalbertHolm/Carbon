@@ -41,6 +41,7 @@ const COL_DADO := Color("#3F4637")
 const COL_VENT := Color("#3F3F3A")
 const COL_SLAT := Color("#1E1E1C")
 const COL_WINDOW := Color("#B8C0BC")
+const COL_BOARD := Color("#2C3A30")
 const FIXTURE_XZ := [
 	Vector2(-3.5, 3.5), Vector2(3.5, 3.5), Vector2(-3.5, 0.5),
 	Vector2(3.5, 0.5), Vector2(-3.5, -2.5), Vector2(3.5, -2.5),
@@ -158,6 +159,8 @@ static func _add_boards(root: Node3D, occupied: Array) -> void:
 			seated += 1
 	var board := Geo.quad(1.6, 1.0, TextTex.quota_board(root, seated), Geo.WHITE, 0.0, 0.0, "QuotaBoard")
 	Geo.add(root, board, Vector3(-8.88, 1.6, 0.0), Vector3(0, 90, 0))
+	# Backing body from the west wall face (x = -9.0) to just behind the board, so the 0.12 m gap is filled (QUESTION-18).
+	Geo.add(root, Geo.solid(Vector3(0.114, 1.0, 1.6), COL_BOARD, "QuotaBacking"), Vector3(-8.943, 1.6, 0.0))
 	DoorModel.build_supervisor(root)
 	DoorModel.build_exit(root)
 
