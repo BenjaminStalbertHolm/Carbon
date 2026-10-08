@@ -2,7 +2,8 @@ extends Node
 ## Desk lamp (spec 8.12, 13.5, 6.4). The light is the SpotLight3D Lamp04 that hall_c.gd builds,
 ## and the shade is Desk04/Lamp/LampShade. The light follows GameState.lamp_on: DayDirector
 ## switches it off after the End of Shift memo and at the day end, and begins each day lit.
-## A click always makes lamp_click (spec 6.4), and DayDirector.click_lamp() decides the rest.
+## A click makes lamp_click (spec 6.4), and DayDirector.click_lamp() decides the rest. From the
+## refusal on, interaction.gd does not make the click at all (spec 15.2 step 1).
 ## The click sound is played here, on the DayDirector.lamp_click signal, so it is not played twice.
 
 const LIGHT_ENERGY := 0.8

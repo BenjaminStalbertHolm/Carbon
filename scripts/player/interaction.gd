@@ -27,6 +27,16 @@ const HOLDABLE := ["inbox", "read_stack", "carbon_spot"]
 const STANDING_ACTIONS := ["chair_04", "door_supervisor", "door_exit"]
 const DOOR_HANDLE_PICK := Vector3(0.38, 1.0, 0.06)  # door-local, on the room side
 const NO_POS := Vector3(INF, INF, INF)
+## Spec 8.13 supervisor door. The played levels are the spec's; the gains are played minus the file
+## peak (QUESTION-29). door_rattle.wav peaks at -22 dBFS, key_clack_1..4.wav at -10 dBFS.
+const SUPERVISOR_RATTLE_DB := -22.0
+const SUPERVISOR_CLACK_DB := -30.0
+const DOOR_RATTLE_PEAK_DB := -22.0
+const KEY_CLACK_PEAK_DB := -10.0
+const SUPERVISOR_CLACK_DELAY_S := 1.2
+const SUPERVISOR_CLACK_FROM_DAY := 4
+const SUPERVISOR_DOOR := "SupervisorDoor"
+const BEHIND_DOOR_OFFSET := Vector3(0.0, 1.0, -0.5)  # world offset from the door root, into the room behind
 
 var enabled := false
 var controller = null  # main.gd: open_read_view, open_menu, set_typing_focus, is_focus_open, read_view
@@ -49,6 +59,9 @@ var _press_node = null
 var _press_pos := Vector3.ZERO
 var _press_t := 0.0
 var _press_fired := false
+var _hall: Node = null
+var _clack_in := -1.0  # seconds until the Day 4 key_clack after a rattle; below 0 when none is due
+var _clack_pos := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -58,6 +71,7 @@ func _ready() -> void:
 ## Wires the presentation nodes. hall is the HallC root (its Chair04 and doors get pick bodies).
 func setup(ctl, hall: Node, player_node, desk_node, held_node, typewriter_node, tube_node, carbon_node) -> void:
 	controller = ctl
+	_hall = hall
 	player = player_node
 	desk = desk_node
 	held = held_node
@@ -159,6 +173,9 @@ func _home_action() -> String:
 func dispatch_click(action: String, node: Node3D = null, hit_position: Vector3 = Vector3.ZERO) -> void:
 	if not _allowed(action) or _blocked():
 		return
+	# Spec 15.2 step 1: from the refusal on, the lamp does nothing: no click, no sound, no day end.
+	if action == "lamp" and _lamp_locked():
+		return
 	action_pressed.emit(action, node, hit_position)
 	match action:
 		"inbox":
@@ -220,10 +237,43 @@ func dispatch_hold(action: String, node: Node3D = null, hit_position: Vector3 = 
 				_hand_origin = "carbon_spot"
 
 
-## Hook for the doors agent (spec 8.13). M3 only reports the handle click. The door rattle and
-## the Day 4 key_clack are not built here.
+## Spec 8.13. A click on the supervisor handle (standing only, as _allowed enforces) plays
+## door_rattle at -22 dBFS played level. From Day 4 on, one key_clack from behind the door follows
+## 1.2 s later at -30 dBFS played level. The rattle is player-caused; the key_clack is not.
+## The exit handle is the endings controller's (spec 15.2), so this does nothing for it.
 func on_door_handle_clicked(which: String) -> void:
-	pass
+	if which != "supervisor":
+		return
+	var door: Node3D = null
+	if _hall != null:
+		door = _hall.get_node_or_null(SUPERVISOR_DOOR) as Node3D
+	var pos := Vector3.ZERO
+	if door != null and door.is_inside_tree():
+		pos = door.global_position + BEHIND_DOOR_OFFSET
+	_play_sound("door_rattle", pos, SUPERVISOR_RATTLE_DB - DOOR_RATTLE_PEAK_DB, true)
+	if _current_day() >= SUPERVISOR_CLACK_FROM_DAY:
+		_clack_pos = pos
+		_clack_in = SUPERVISOR_CLACK_DELAY_S
+
+
+func _current_day() -> int:
+	var gs = _gs()
+	return int(gs.day) if gs != null else 0
+
+
+func _play_sound(sound: String, pos: Vector3, gain_db: float, player_caused: bool) -> void:
+	var ad = _autoload("AudioDirector")
+	if ad != null and ad.has_method("play"):
+		ad.play(sound, pos, true, gain_db, player_caused)
+
+
+## The endings flags (main.gd forwards them to endings_controller.gd, spec 15).
+func _typing_locked() -> bool:
+	return controller != null and controller.has_method("typing_locked") and bool(controller.typing_locked())
+
+
+func _lamp_locked() -> bool:
+	return controller != null and controller.has_method("lamp_locked") and bool(controller.lamp_locked())
 
 
 # --- Action bodies ---------------------------------------------------------------------
@@ -256,8 +306,8 @@ func _click_blank_tray() -> void:
 
 
 func _click_typewriter() -> void:
-	if typewriter == null:
-		return
+	if typewriter == null or _typing_locked():
+		return  # spec 15.1 step 1: typing view is disabled during Ending A
 	var doc_id := _hand_id if _hand_kind == "document" else ""
 	if typewriter.open_typing_view(doc_id):
 		if controller != null and controller.has_method("set_typing_focus"):
@@ -368,6 +418,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	if _clack_in >= 0.0:
+		_clack_in -= delta
+		if _clack_in < 0.0:
+			_clack_in = -1.0
+			_play_sound("key_clack", _clack_pos, SUPERVISOR_CLACK_DB - KEY_CLACK_PEAK_DB, false)
 	if not _pressed or _press_fired or not HOLDABLE.has(_press_action):
 		return
 	_press_t += delta

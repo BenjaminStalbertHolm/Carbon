@@ -24,6 +24,8 @@ const TitleScreen := preload("res://scripts/ui/title_screen.gd")
 const ContentNote := preload("res://scripts/ui/content_note.gd")
 const EndingsController := preload("res://scripts/endings/endings_controller.gd")
 const EndingsPresentation := preload("res://scripts/endings/endings_presentation.gd")
+const ClerkBehaviour := preload("res://scripts/world/clerk_behaviour.gd")
+const ClockBehaviour := preload("res://scripts/world/clock_behaviour.gd")
 const READ_VIEW_SCENE := preload("res://scenes/ui/read_view.tscn")
 const MENU_SCENE := preload("res://scenes/ui/menu_folder.tscn")
 const BLACK_SCENE := preload("res://scenes/ui/black_paper.tscn")
@@ -32,6 +34,21 @@ const FADE_IN_S := 2.0
 
 ## Emitted when the read view closes, with the id of the document on show (spec 6.4).
 signal read_view_closed(doc_id: String)
+
+## The endings presentation, with two announcements for the room. The sequences call silence() and
+## restore_record() by name (endings_controller.gd _wire), so these overrides run the base method
+## and then emit a signal, which main.gd hands to the clerks and the clock (spec 15.3 steps 4 and 5).
+class RoomPresentation extends "res://scripts/endings/endings_presentation.gd":
+	signal room_silenced
+	signal desks_restored(desks: Array)
+
+	func silence() -> void:
+		super.silence()
+		room_silenced.emit()
+
+	func restore_record(desks: Array) -> void:
+		super.restore_record(desks)
+		desks_restored.emit(desks)
 
 var auto_boot := true
 
@@ -53,7 +70,9 @@ var black = null
 var title = null
 var note = null
 var endings = null  # EndingsController (spec 15): flags for menu, desk, standing and input
-var endings_pres = null  # EndingsPresentation: carries out the ending sequences
+var endings_pres = null  # RoomPresentation (an EndingsPresentation): carries out the ending sequences
+var clerk_world = null  # ClerkBehaviour: clerk typing, redaction removals and restoration
+var clock_world = null  # ClockBehaviour: the clock hands and clock_tick
 
 var _running := false
 var _typing_flag := false
@@ -84,6 +103,15 @@ func _build() -> void:
 	add_child(pipeline)
 
 	hall = HallC.build(pipeline.world, {})
+
+	clerk_world = ClerkBehaviour.new()
+	clerk_world.name = "ClerkBehaviour"
+	add_child(clerk_world)
+	clerk_world.setup(hall)
+	clock_world = ClockBehaviour.new()
+	clock_world.name = "ClockBehaviour"
+	add_child(clock_world)
+	clock_world.setup(hall)
 
 	player = PlayerController.new()
 	player.name = "Player"
@@ -182,10 +210,12 @@ func _build() -> void:
 	endings = EndingsController.new()
 	endings.name = "Endings"
 	add_child(endings)
-	endings_pres = EndingsPresentation.new()
+	endings_pres = RoomPresentation.new()
 	endings_pres.name = "EndingsPresentation"
 	add_child(endings_pres)
 	endings_pres.setup(self, hall, player, typewriter, black, pipeline)
+	endings_pres.room_silenced.connect(_on_room_silenced)
+	endings_pres.desks_restored.connect(_on_desks_restored)
 	endings.setup(endings_pres)
 	endings.bind_interaction(interaction, player, desk)
 	endings.returned_to_title.connect(_on_endings_returned)
@@ -210,7 +240,9 @@ func _on_new_game() -> void:
 	title.hide_title()
 	if endings != null:
 		endings.reset()
+	_reset_world()
 	_dd().start_new_game()
+	_apply_day_world()
 	player.reset_seated()
 	await black.run_day_title(1, true)
 	await black.fade_in(FADE_IN_S)
@@ -228,8 +260,10 @@ func _on_continue() -> void:
 	title.hide_title()
 	if endings != null:
 		endings.reset()
+	_reset_world()
 	player.reset_seated()
 	_dd().begin_day(int(_gs().day))
+	_apply_day_world()
 	await black.fade_in(FADE_IN_S)
 	_begin_running()
 
@@ -243,6 +277,7 @@ func _on_day_ended(day: int) -> void:
 	_transition = true
 	await black.run_day_title(day + 1, false)
 	_dd().start_next_day()
+	_apply_day_world()
 	player.reset_seated()
 	await black.fade_in(FADE_IN_S)
 	_begin_running()
@@ -258,7 +293,9 @@ func _begin_running() -> void:
 func debug_start_game(seed_value: int = 4242) -> void:
 	if endings != null:
 		endings.reset()
+	_reset_world()
 	_dd().start_new_game(seed_value)
+	_apply_day_world()
 	player.reset_seated()
 	black.set_shade(0.0)
 	_running = false
@@ -297,6 +334,46 @@ func open_menu() -> void:
 	if endings != null and endings.menu_locked():
 		return  # spec 15: the menu folder is disabled from RO-5 on
 	menu.open()
+
+
+## The world follows GameState at each day transition, during the black screen (spec 8.9, 8.10):
+## redacted desks are removed and every nameplate and refused clerk is synced.
+func _apply_day_world() -> void:
+	var gs = _gs()
+	if gs == null or clerk_world == null:
+		return
+	clerk_world.apply_day_state(int(gs.day))
+
+
+## A new game or a continue after an ending: the clerks type and the clock runs again.
+func _reset_world() -> void:
+	if clerk_world != null:
+		clerk_world.reset_silence()
+	if clock_world != null:
+		clock_world.reset_silence()
+
+
+## Ending C step 4 (spec 15.3): all clerk typing and the clock stop.
+func _on_room_silenced() -> void:
+	if clerk_world != null:
+		clerk_world.silence()
+	if clock_world != null:
+		clock_world.silence()
+
+
+## Ending C step 5 (spec 15.3): the redacted desks return with their clerks.
+func _on_desks_restored(desks: Array) -> void:
+	if clerk_world != null:
+		clerk_world.restore_desks(desks)
+
+
+## The endings flags the interaction reads (spec 15.1 step 1, 15.2 step 1): typing view and lamp.
+func typing_locked() -> bool:
+	return endings != null and endings.typing_locked()
+
+
+func lamp_locked() -> bool:
+	return endings != null and endings.lamp_locked()
 
 
 func _sync_focus() -> void:

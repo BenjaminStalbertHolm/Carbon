@@ -27,6 +27,7 @@ var _elapsed := 0.0
 var _dur := MOVE_S
 var _shown_override := ""
 var _tick_acc := 0.0
+var _silenced := false  # set by silence() at Ending C step 4 (spec 15.3)
 
 
 func setup(hall_root: Node3D) -> void:
@@ -47,8 +48,19 @@ func setup(hall_root: Node3D) -> void:
 	_apply_hands()
 
 
+## Ending C step 4 (spec 15.3): the clock stops. Its hands stay where they are and clock_tick
+## stops. reset_silence() undoes it for a new game.
+func silence() -> void:
+	_silenced = true
+	_anim = false
+
+
+func reset_silence() -> void:
+	_silenced = false
+
+
 func _process(delta: float) -> void:
-	if _hour == null or _minute == null:
+	if _hour == null or _minute == null or _silenced:
 		return
 	var gs = get_node_or_null("/root/GameState")
 	if gs == null:
@@ -81,7 +93,7 @@ func _process(delta: float) -> void:
 ## while an override is showing; the correct time is then read from GameState.
 func _on_clock_set(time: String, anim_s: float) -> void:
 	var gs = get_node_or_null("/root/GameState")
-	if gs == null or bool(gs.clock_frozen) or _shown_override != "":
+	if gs == null or bool(gs.clock_frozen) or _shown_override != "" or _silenced:
 		return
 	var target := ClockMath.hand_angles(time)
 	_from_h = _hour_deg

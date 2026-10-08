@@ -13,6 +13,15 @@ extends Node
 ## Usage (the lead): var cb := ClerkBehaviour.new(); add_child(cb); cb.setup(hall_root);
 ## then cb.apply_day_state(day) during the transition.
 
+const HallC := preload("res://scripts/world/hall_c.gd")
+const DeskModel := preload("res://scripts/world/desk.gd")
+const ChairModel := preload("res://scripts/world/chair.gd")
+const TypewriterModel := preload("res://scripts/world/typewriter_model.gd")
+const TubeModel := preload("res://scripts/world/tube_terminal_model.gd")
+const ClerkFigure := preload("res://scripts/world/clerk_figure.gd")
+const Nameplate := preload("res://scripts/world/nameplate.gd")
+const TextTex := preload("res://scripts/world/text_texture.gd")
+
 const FPS := 15.0
 const HAND_OFFSET := 0.02
 const RESUME_S := 0.5
@@ -34,10 +43,17 @@ var _unison_frozen := false
 var _unison_resume := 0.0
 var _t := 0.0
 var _fallback_rng := RandomNumberGenerator.new()
+var _silenced := false  # set by silence() at Ending C step 4 (spec 15.3)
 
 
 func setup(hall_root: Node3D) -> void:
 	_hall = hall_root
+	_register()
+	_unison_stream = _new_stream()
+
+
+## Registers every typing clerk the hall holds (a removed desk has no figure and is skipped).
+func _register() -> void:
 	_clerks.clear()
 	var gaze = get_node_or_null("/root/Gaze")
 	for desk in TYPING_DESKS:
@@ -60,11 +76,59 @@ func setup(hall_root: Node3D) -> void:
 			"offset": _rnd().randi_range(0, 3), "frozen": false, "resume": 0.0,
 			"stream": _new_stream(),
 		}
-	_unison_stream = _new_stream()
+
+
+## Ending C step 4 (spec 15.3): all clerk typing stops. Every typing clerk rests with its hands
+## where they rest, and no keystroke sounds again until reset_silence().
+func silence() -> void:
+	_silenced = true
+	for desk in _clerks:
+		var st: Dictionary = _clerks[desk]
+		st["hand_l"].position = st["rest_l"]
+		st["hand_r"].position = st["rest_r"]
+
+
+## A new game after an ending: typing resumes for the clerks that are in the room.
+func reset_silence() -> void:
+	_silenced = false
+	_register()
+
+
+## Ending C step 5 (spec 15.3): every desk removed by redaction returns with its desk, chair,
+## typewriter, tube terminal, nameplate (GameState.nameplate, the original name) and its seated
+## clerk figure. The figures are built with the models hall_c.gd uses, one desk at a time, and then
+## apply_day_state syncs every nameplate and turns the present clerks to face Desk 4 (hands on
+## thighs, not typing). The caller has already set GameState.desk_removed and clerk_present.
+func restore_desks(desks: Array) -> void:
+	if _hall == null:
+		return
+	var gs = get_node_or_null("/root/GameState")
+	var atlas: Texture2D = null
+	for d in desks:
+		var n := int(d)
+		if n == 4 or n == 12 or _hall.get_node_or_null("Desk%02d" % n) != null:
+			continue
+		if atlas == null:
+			atlas = TextTex.keycap_atlas(_hall)
+		_build_desk(n, atlas, gs)
+	if gs != null:
+		apply_day_state(int(gs.day))
+
+
+func _build_desk(n: int, atlas: Texture2D, gs) -> void:
+	var centre := HallC.desk_centre(n)
+	var desk := DeskModel.build(_hall, "Desk%02d" % n, centre)
+	var text := String(gs.nameplate.get(str(n), "")) if gs != null else ""
+	Nameplate.build(desk, text, HallC.NAMEPLATE_POS)
+	var chair := ChairModel.build(_hall, "Chair%02d" % n, centre + Vector3(0, 0, HallC.CHAIR_OFFSET))
+	TypewriterModel.build(_hall, "Typewriter%02d" % n, centre, atlas)
+	TubeModel.build(_hall, "Tube%02d" % n, centre)
+	var fig = ClerkFigure.build(_hall, "Clerk%02d" % n, centre + Vector3(0, 0, HallC.CHAIR_OFFSET), chair)
+	fig.set_facing_player()
 
 
 func _process(delta: float) -> void:
-	if _hall == null:
+	if _hall == null or _silenced:
 		return
 	var gs = get_node_or_null("/root/GameState")
 	if gs == null:
@@ -121,10 +185,13 @@ func apply_day_state(_day: int) -> void:
 			_remove_named("Chair%02d" % desk)
 			_clerks.erase(desk)
 			continue
+		var fig = _hall.get_node_or_null("Clerk%02d" % desk)
+		if fig == null:
+			continue
 		if bool(gs.clerk_faces_player.get(key, false)):
-			var fig = _hall.get_node_or_null("Clerk%02d" % desk)
-			if fig != null:
-				fig.set_facing_player()
+			fig.set_facing_player()
+		else:
+			fig.set_seated_facing_north()
 	var un = get_node_or_null("/root/UnseenChanges")
 	if un != null:
 		for desk in range(1, 13):
