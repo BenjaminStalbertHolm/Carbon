@@ -23,6 +23,13 @@ func _check(ok: bool, label: String) -> void:
 		_failures += 1
 
 
+func _check_eq(actual: Variant, expected: Variant, label: String) -> void:
+	_check(actual == expected, label)
+	if actual != expected:
+		print("      expected: %s" % str(expected))
+		print("      actual:   %s" % str(actual))
+
+
 func _sheet(lines_text: Array) -> Dictionary:
 	var d := DocModel.new_doc("T", "sheet")
 	var p := DocModel.new_page()
@@ -176,6 +183,29 @@ func _run() -> void:
 	tw6.ghost_set_running(false, 11000.0)
 	tw6.tick(20000.0)
 	_check(not DocModel.has_glyph(doc6.pages[0], 0, 1), "stopping mid-string leaves the rest untyped")
+
+	# Day 5 name substitution (spec 14.12): the original shows H. VANCE, the carbon the typed name.
+	var parts7 := _new_model(31)
+	var tw7: TypewriterModel = parts7[0]
+	var form7 := _sheet([])
+	DocModel.add_printed_lines(form7.pages[0], ["1. FULL NAME", "   {{F1:24}}"])
+	var carbon7 := DocModel.make_carbon(form7, "C7")
+	tw7.load_sheet(form7, carbon7)
+	tw7.field_substitution = {"F1": "H. VANCE"}
+	var typed7 := "ANNA"
+	for ch in typed7:
+		tw7.type_key(ch, 0.0)
+	var f7 := DocModel.field_by_id(form7.pages[0], "F1")
+	_check_eq(DocModel.field_value(form7.pages[0], f7), "H. V", "original shows the first four characters of H. VANCE for four typed characters")
+	_check_eq(DocModel.field_value(carbon7.pages[0], f7), "ANNA", "carbon shows exactly what the player typed")
+	tw7.col = int(f7.col) + 8
+	tw7.type_key("Z", 0.0)
+	_check(not DocModel.has_glyph(form7.pages[0], int(f7.line), int(f7.col) + 8), "original renders nothing past the 8th substitute character")
+	_check(DocModel.has_glyph(carbon7.pages[0], int(f7.line), int(f7.col) + 8), "carbon still records a character past the 8th")
+	tw7.field_bar = {"F1": true}
+	tw7.col = int(f7.col)
+	tw7.type_key("Q", 0.0)
+	_check(String(form7.pages[0].cells[DocModel.cell_key(int(f7.line), int(f7.col))].g[-1].c) == TypewriterModel.BAR_GLYPH, "with H. VANCE redacted, typed cells become solid bars on the original")
 
 	print("RESULT: %s, %d failure(s)" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	quit(1 if _failures > 0 else 0)

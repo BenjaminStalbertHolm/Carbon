@@ -241,7 +241,7 @@ func _expand_ro4(spec: Dictionary) -> void:
 	var block := ""
 	if not g.carried_forward.is_empty():
 		var rows: Array = [""]
-		rows.append("CARRIED FORWARD FROM RO-2")
+		rows.append(String(_strings().carried_forward_title))
 		for c in g.carried_forward:
 			rows.append(String(c.row))
 		block = "\n".join(rows)
@@ -553,22 +553,28 @@ func _printed_rows(page: Dictionary) -> Dictionary:
 	return rows
 
 
+## Typewriter settings for a sheet being loaded (spec 14.12). P-1D on Day 5 shows
+## the substitute name on the original, or solid bars when H. VANCE was redacted.
+## Returns {field_substitution, field_bar}, or {} for every other sheet.
+func sheet_options(doc_id: String) -> Dictionary:
+	var g := _gs()
+	if doc_id != "P-1D" or g.day != 5:
+		return {}
+	var vance_redacted: bool = g.redacted_names.has("vance")
+	return {
+		"field_substitution": {"F1": "H. VANCE"},
+		"field_bar": {"F1": vance_redacted},
+	}
+
+
 # --- Stamps (spec 8.1) ------------------------------------------------------------
-
-const STAMP_WORDS := {
-	"APPROVED": "APPROVED",
-	"DENIED": "DENIED",
-	"PROCESSED": "PROCESSED",
-	"RETURNED": "RETURNED — UNPROCESSED",
-}
-
 
 ## Stamps a page of a stampable document. The first impression sets the page's
 ## result. A later one that differs counts as a contradiction (spec 8.1). Returns
 ## false when the document cannot be stamped.
 func stamp_document(doc_id: String, page_index: int, result: String, x: float, y: float, rot: float, a: float) -> bool:
 	var g := _gs()
-	if not g.docs.has(doc_id) or not STAMP_WORDS.has(result):
+	if not g.docs.has(doc_id) or not _strings().stamp_words.has(result):
 		return false
 	var doc: Dictionary = g.docs[doc_id]
 	if not bool(doc.stampable) or page_index >= doc.pages.size():
@@ -578,7 +584,8 @@ func stamp_document(doc_id: String, page_index: int, result: String, x: float, y
 	if first != "" and first != result:
 		g.contradictory_stamps += 1
 	var ink := "#8E2A22" if result == "DENIED" or result == "RETURNED" else "#2F3B5C"
-	Doc.add_stamp(page, String(STAMP_WORDS[result]), result, ink, x, y, rot, a, g.rng.randi())
+	var words: Dictionary = _strings().stamp_words
+	Doc.add_stamp(page, String(words[result]), result, ink, x, y, rot, a, g.rng.randi())
 	return true
 
 
@@ -712,7 +719,8 @@ func _return_free_mail(day: int) -> void:
 		var d: Dictionary = g.docs.get(String(id), {})
 		if d.is_empty():
 			continue
-		d.pages[0].stamps.append({"word": "NO SUCH ADDRESSEE", "result": "NO SUCH ADDRESSEE", "ink": "red",
+		var addressee := String(_strings().no_such_addressee)
+		d.pages[0].stamps.append({"word": addressee, "result": addressee, "ink": "red",
 			"x": Doc.PAGE_W * 0.5, "y": Doc.PAGE_H / 6.0, "rot": 0.0, "a": 0.9, "seed": g.rng.randi()})
 		g.place(String(id), "inbox")
 	g.free_mail_sent = []

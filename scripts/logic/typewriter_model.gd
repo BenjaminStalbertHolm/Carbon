@@ -41,6 +41,15 @@ var fond_word := ""
 var cadence: CadenceModel = null
 var rng: RandomNumberGenerator = null
 
+## Spec 14.12 (Day 5, P-1D field F1): the original sheet shows a substitute instead
+## of the typed name. field_substitution maps a field id to the text it renders
+## (the k-th typed character shows the k-th substitute character, and nothing is
+## shown past its end). field_bar maps a field id to true when every cell is a
+## solid bar, shown as BAR_GLYPH. Carbons always show what was typed.
+var field_substitution := {}
+var field_bar := {}
+const BAR_GLYPH := "█"
+
 var _events: Array = []
 var _cell_lock := {}  # "line:col" -> ms until which the cell refuses glyphs
 var _locked_until := -1.0  # retired-word lock (spec 8.8)
@@ -305,19 +314,33 @@ func _next_field_start(cur_line: int, cur_col: int) -> Array:
 ## (spec 8.5). ghost marks glyphs written by ghost typing (no cadence capture).
 func _write(ch: String, now: float, ghost: bool) -> void:
 	var c := DocModel.cell(page, line, col)
-	var glyph := DocModel.make_glyph(ch, rng, "black")
-	if c.g.size() < DocModel.MAX_GLYPHS:
-		c.g.append(glyph)
+	var shown := _original_glyph_for(ch)
+	if shown != "":
+		var glyph := DocModel.make_glyph(shown, rng, "black")
+		if c.g.size() < DocModel.MAX_GLYPHS:
+			c.g.append(glyph)
 	if not carbon_page.is_empty():
 		var cc := DocModel.cell(carbon_page, line, col)
 		if cc.g.size() < DocModel.MAX_GLYPHS:
-			var copy := glyph.duplicate()
-			copy.ink = "carbon"
+			var copy := DocModel.make_glyph(ch, rng, "carbon")
 			cc.g.append(copy)
 	_emit({"t": "key", "ch": ch, "ghost": ghost})
 	if col == BELL_COLUMN:
 		_emit({"t": "bell", "ghost": ghost})
 	col += 1
+
+
+## What the original shows for a typed character. "" means nothing is shown
+## (spec 14.12: past the end of the substitute). Other fields show the character.
+func _original_glyph_for(ch: String) -> String:
+	var f := _field_at(line, col)
+	if f.is_empty() or not field_substitution.has(String(f.id)):
+		return ch
+	if bool(field_bar.get(String(f.id), false)):
+		return BAR_GLYPH
+	var k := col - int(f.col)
+	var sub := String(field_substitution[String(f.id)])
+	return sub.substr(k, 1) if k < sub.length() else ""
 
 
 func _return_to(target_line: int, target_col: int, now: float, ghost: bool) -> void:

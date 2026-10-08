@@ -166,8 +166,10 @@ func _run() -> void:
 
 	_dd.tick(5.0)
 	_transcription("C-22", true)
-	# The C-22 source contains an em dash that the typewriter cannot type (spec 7.2). See QUESTION-10.
-	_check(float(_gs.accuracy.get("T-2", 0.0)) >= 0.99, "day 2: transcription T-2 (C-22 with the fond word) is accurate apart from the em dash (got %s)" % str(_gs.accuracy.get("T-2")))
+	# The C-22 source keeps its em dash, which the typewriter cannot type (QUESTION-10, decided
+	# literally). A faithful copy therefore scores just below 1.0 and stays ACCEPTABLE (>= 0.98).
+	var t2 := float(_gs.accuracy.get("T-2", 0.0))
+	_check(t2 >= 0.98 and t2 < 1.0, "day 2: transcription T-2 scores below 1.0 but stays ACCEPTABLE (got %s)" % str(t2))
 	_dd.tick(5.0)
 	_order("RO-2", ["DOBRA, KASIMIR", "FELL, ODETTE", "MORAVEC, AUREL", "MORAVEC, ILSE"], "PROCESSED")
 	_check(_gs.first_stamp.get("RO-2", "") == "PROCESSED", "day 2: RO-2 first impression PROCESSED")
