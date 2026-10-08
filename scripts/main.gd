@@ -83,6 +83,13 @@ var _read_doc_id := ""
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build()
+	# Debug builds only (spec 21): the debug console goes on the root. Its path is assembled at run
+	# time so that no release export carries the file name; release builds never reach this block.
+	if OS.is_debug_build():
+		var console_path := PackedStringArray(["res://scripts/", "debug/", "debug_", "console.gd"])
+		var console = load("".join(console_path)).new()
+		console.main = self
+		get_tree().root.add_child.call_deferred(console)
 	if auto_boot:
 		_boot()
 
