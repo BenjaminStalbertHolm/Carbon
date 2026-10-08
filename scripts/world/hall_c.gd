@@ -200,7 +200,8 @@ static func _add_windows(root: Node3D) -> void:
 	var windows := Geo.group(root, "Windows")
 	var zs := [-4.5, -1.5, 1.5, 4.5]
 	for i in 4:
-		Geo.add(windows, Geo.quad(1.2, 1.0, Geo.TEX_FROSTED, COL_WINDOW, 0.0, 0.25, "Window%d" % (i + 1)),
+		# Frosted glass (spec 5.2, QUESTION-45): alpha blend. Behind each window is only the wall.
+		Geo.add(windows, Geo.quad(1.2, 1.0, Geo.TEX_FROSTED, COL_WINDOW, 0.0, 0.25, "Window%d" % (i + 1), true),
 			Vector3(8.99, 1.8 + 0.5, zs[i]), Vector3(0, -90, 0))
 
 

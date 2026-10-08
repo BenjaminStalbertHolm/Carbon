@@ -435,7 +435,8 @@ static func _fan(st: SurfaceTool, centre: Vector2, ring: Array) -> void:
 	for i in range(ring.size()):
 		var a: Vector2 = ring[i]
 		var b: Vector2 = ring[(i + 1) % ring.size()]
-		for p in [centre, a, b]:
+		# Clockwise seen from +Z, the front face the room sees; cull_back keeps it (QUESTION-45).
+		for p in [centre, b, a]:
 			st.set_normal(Vector3(0.0, 0.0, 1.0))
 			st.add_vertex(Vector3(p.x, p.y, 0.0))
 

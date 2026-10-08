@@ -195,6 +195,37 @@ func _check_room(hall: Node) -> void:
 	if exit_door != null:
 		_expect(exit_door.global_transform.basis.z.is_equal_approx(Vector3(0, 0, -1)), "ExitDoor faces the room (north)")
 	_expect(hall.get_node_or_null("SupervisorRoom") != null, "unlit supervisor room box exists")
+	# QUESTION-45: the room behind the supervisor glass is #000000; all frosted glass is alpha-blended.
+	var room := hall.get_node_or_null("SupervisorRoom") as MeshInstance3D
+	_expect(room != null and _albedo(room).is_equal_approx(Color(0, 0, 0, 1)), "SupervisorRoom is #000000")
+	var sup_glass := hall.get_node_or_null("SupervisorDoor/Glass") as MeshInstance3D
+	_expect(sup_glass != null and _is_glass(sup_glass), "supervisor glass uses the alpha-blended frosted glass shader")
+	for i in 4:
+		var win := hall.get_node_or_null("Windows/Window%d" % (i + 1)) as MeshInstance3D
+		_expect(win != null and _is_glass(win), "Window%d uses the alpha-blended frosted glass shader" % (i + 1))
+	_expect(_frosted_alpha_ok(), "frosted glass texture alpha is 0.7 (178 of 255)")
+
+
+## The albedo_color a flat surface was built with, or a negative colour when it has none.
+func _albedo(mi: MeshInstance3D) -> Color:
+	var mat := mi.material_override as ShaderMaterial
+	if mat == null:
+		return Color(-1, -1, -1, -1)
+	return mat.get_shader_parameter("albedo_color")
+
+
+## True when the surface uses the alpha-blended frosted glass shader.
+func _is_glass(mi: MeshInstance3D) -> bool:
+	var mat := mi.material_override as ShaderMaterial
+	return mat != null and mat.shader == Geo.PSX_SPATIAL_GLASS
+
+
+## The frosted texture carries the glass alpha: 178 of 255, which is 0.7 to rounding.
+func _frosted_alpha_ok() -> bool:
+	var img := Image.load_from_file("res://assets/textures/frosted.png")
+	if img == null:
+		return false
+	return absf(img.get_pixel(0, 0).a - 0.7) < 0.005
 
 
 ## QUESTION-39 (spec 6.1, 15.2): the north and south walls are cut for the two doorways. No

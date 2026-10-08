@@ -31,15 +31,17 @@ static func build_supervisor(parent: Node3D) -> Node3D:
 	var door := Geo.group(parent, "SupervisorDoor", Vector3(SUPERVISOR_X, 0.0, -6.0))
 	Geo.add(door, Geo.quad(DOOR_WIDTH, GLASS_BOTTOM, Geo.TEX_STEEL, Geo.WHITE, 1.0, 0.0, "Panel"),
 		Vector3(0, GLASS_BOTTOM * 0.5, PANEL_Z))
-	Geo.add(door, Geo.quad(DOOR_WIDTH, DOOR_HEIGHT - GLASS_BOTTOM, Geo.TEX_FROSTED, Geo.WHITE, 1.0, 0.0, "Glass"),
+	# Frosted glass (spec 5.2, QUESTION-45): alpha 0.7, so the silhouette 0.05 m behind shows through.
+	Geo.add(door, Geo.quad(DOOR_WIDTH, DOOR_HEIGHT - GLASS_BOTTOM, Geo.TEX_FROSTED, Geo.WHITE, 1.0, 0.0, "Glass", true),
 		Vector3(0, (DOOR_HEIGHT + GLASS_BOTTOM) * 0.5, PANEL_Z))
 	var label := TextTex.supervisor_label(door)
 	Geo.add(door, Geo.quad(0.40, 0.075, label, Geo.WHITE, 0.0, 0.0, "Label"),
 		Vector3(0, (DOOR_HEIGHT + GLASS_BOTTOM) * 0.5, PANEL_Z + 0.004))
 	_handle(door)
 	door.add_child(Geo.static_box(Vector3(DOOR_WIDTH, DOOR_HEIGHT, 0.04), Vector3(0, DOOR_HEIGHT * 0.5, 0), "Collision"))
-	# The unlit box room behind the supervisor door (3 x 3 x 3.2), beyond the north wall.
-	Geo.add(parent, Geo.solid(Vector3(3.0, 3.0, 3.2), Color("#2A2A26"), "SupervisorRoom"), Vector3(0, 1.5, -7.8))
+	# The unlit box room behind the supervisor door (3 x 3 x 3.2), beyond the north wall. Black
+	# (#000000, as the unlit box of spec 15.2) so the figure reads as a faint shape through the glass.
+	Geo.add(parent, Geo.solid(Vector3(3.0, 3.0, 3.2), Color("#000000"), "SupervisorRoom"), Vector3(0, 1.5, -7.8))
 	return door
 
 

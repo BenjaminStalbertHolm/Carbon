@@ -1,11 +1,13 @@
 extends RefCounted
 ## Primitive builders for Hall C (spec 5.3 and 4.2). Meshes are ArrayMesh built in
 ## code (boxes, cylinders, discs, quads, a half-cylinder shell) or a SphereMesh.
-## Every surface uses psx_spatial.gdshader through a ShaderMaterial, and every
-## textured surface has an albedo colour of white, so the texture shows its own
-## palette colour (spec 5.7). Static functions only; this file keeps no state.
+## Every surface uses psx_spatial.gdshader through a ShaderMaterial, except frosted glass,
+## which uses psx_spatial_glass.gdshader (alpha blend, QUESTION-45). Every textured surface
+## has an albedo colour of white, so the texture shows its own palette colour (spec 5.7).
+## Static functions only; this file keeps no state.
 
 const PSX_SPATIAL := preload("res://shaders/psx_spatial.gdshader")
+const PSX_SPATIAL_GLASS := preload("res://shaders/psx_spatial_glass.gdshader")
 const TEX_WHITE := preload("res://assets/textures/white4.png")
 const TEX_FLOOR := preload("res://assets/textures/floor_lino.png")
 const TEX_WALL_UPPER := preload("res://assets/textures/wall_upper.png")
@@ -22,10 +24,13 @@ const TEX_CHALK := preload("res://assets/textures/chalk_board.png")
 const WHITE := Color(1.0, 1.0, 1.0, 1.0)
 
 
-## Shader material for one surface. Uniforms per spec 4.2.
-static func material(tex: Texture2D, colour: Color = WHITE, emission: float = 0.0) -> ShaderMaterial:
+## Shader material for one surface. Uniforms per spec 4.2. glass selects the alpha-blended
+## frosted glass variant (spec 5.2, QUESTION-45). Its alpha is the colour's alpha times the
+## texture's alpha, so a glass colour keeps alpha 1 and the frosted texture (alpha 178, 0.7)
+## sets the transmission.
+static func material(tex: Texture2D, colour: Color = WHITE, emission: float = 0.0, glass: bool = false) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
-	mat.shader = PSX_SPATIAL
+	mat.shader = PSX_SPATIAL_GLASS if glass else PSX_SPATIAL
 	mat.set_shader_parameter("albedo_tex", tex)
 	mat.set_shader_parameter("albedo_color", colour)
 	mat.set_shader_parameter("uv_scale", Vector2.ONE)
@@ -57,9 +62,10 @@ static func solid(size: Vector3, colour: Color, node_name: String = "Box") -> Me
 	return instance(_box_mesh(size, 1.0), flat(colour), node_name)
 
 
-## Quad in the XY plane, facing +Z. tile <= 0 maps the whole texture once.
-static func quad(width: float, height: float, tex: Texture2D, colour: Color = WHITE, tile: float = 0.0, emission: float = 0.0, node_name: String = "Quad") -> MeshInstance3D:
-	return instance(_quad_mesh(width, height, tile), material(tex, colour, emission), node_name)
+## Quad in the XY plane, facing +Z. tile <= 0 maps the whole texture once. glass makes it a
+## frosted glass quad (alpha blend, see material).
+static func quad(width: float, height: float, tex: Texture2D, colour: Color = WHITE, tile: float = 0.0, emission: float = 0.0, node_name: String = "Quad", glass: bool = false) -> MeshInstance3D:
+	return instance(_quad_mesh(width, height, tile), material(tex, colour, emission, glass), node_name)
 
 
 ## Flat disc in the XY plane, facing +Z. The texture covers the square around the disc.

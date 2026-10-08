@@ -14,6 +14,7 @@ extends Node
 
 const PsxPipeline := preload("res://scripts/rendering/psx_pipeline.gd")
 const HallC := preload("res://scripts/world/hall_c.gd")
+const Geo := preload("res://scripts/world/geometry.gd")
 const ClerkBehaviour := preload("res://scripts/world/clerk_behaviour.gd")
 const ClockBehaviour := preload("res://scripts/world/clock_behaviour.gd")
 
@@ -192,6 +193,11 @@ func _checks() -> void:
 		var aabb: AABB = sil.mesh.get_aabb()
 		# QUESTION-40: the outline is 0.82 m tall, its bottom on the bottom of the 0.95 m quad.
 		_check("D4-U2 silhouette outline is 0.45 x 0.82 m, bottom at the quad's bottom", is_equal_approx(aabb.size.x, 0.45) and is_equal_approx(aabb.size.y, 0.82) and is_equal_approx(aabb.position.y, 0.0))
+		# QUESTION-45: the silhouette stays 0.05 m behind the glass, which is alpha-blended and shows it.
+		var glass = _hall.get_node("SupervisorDoor").get_node("Glass")
+		_check("D4-U2 silhouette 0.05 m behind the glass", absf((sil.global_position.z - glass.global_position.z) + 0.05) < 0.001)
+		_check("supervisor glass uses the alpha-blended frosted glass shader", glass.material_override.shader == Geo.PSX_SPATIAL_GLASS)
+	_check("SupervisorRoom behind the glass is #000000", _hall.get_node("SupervisorRoom").material_override.get_shader_parameter("albedo_color").is_equal_approx(Color(0, 0, 0, 1)))
 	# Unison: every typing clerk shows the same hand pose.
 	var poses := []
 	for d in [1, 2, 3, 5, 6, 7, 8, 9, 10, 11]:
