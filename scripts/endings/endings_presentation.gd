@@ -507,11 +507,12 @@ func _top_carbon() -> String:
 	return ""
 
 
+## The Desk 4 nameplate text in the duplicate hall: the player's name truncated to 14 characters (spec 15.2 step 4).
 func _player_name() -> String:
 	var tt = _autoload("TextTokens")
 	if tt == null:
 		return "CLERK 0412"
-	return String(tt.token_values().PLAYER_NAME)
+	return String(tt.token_values().PLAYER_NAME).substr(0, 14)
 
 
 func _node_pos(node_name: String) -> Vector3:

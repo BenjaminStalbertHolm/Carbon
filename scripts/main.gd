@@ -265,11 +265,15 @@ func _wire_world_systems() -> void:
 
 func _boot() -> void:
 	black.set_shade(1.0)
+	# The content note draws its own black. The main black would sit over its text, so it is hidden
+	# while the note runs and shown again afterwards, as before (smoke run, content note hidden at boot).
+	black.visible = false
 	note = ContentNote.new()
 	note.name = "ContentNote"
 	add_child(note)
 	await note.run()
 	note.queue_free()
+	black.visible = true
 	title.show_title()
 
 

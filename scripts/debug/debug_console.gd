@@ -20,6 +20,7 @@ var _commands = null
 var _history := PackedStringArray()
 var _log: Label = null
 var _line: LineEdit = null
+var _layer: CanvasLayer = null  # a CanvasLayer does not inherit the visibility of its parent Control
 var _was_paused := false
 
 
@@ -33,6 +34,7 @@ func _ready() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = LAYER
 	add_child(layer)
+	_layer = layer
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -58,6 +60,7 @@ func _ready() -> void:
 	_line.text_submitted.connect(_on_submitted)
 	box.add_child(_line)
 	visible = false
+	_layer.visible = false
 
 
 ## F9 toggles the console. The input is read before the GUI, so the line edit does not swallow it.
@@ -74,6 +77,7 @@ func set_open(on: bool) -> void:
 	if on == visible or not DebugGuard.enabled():
 		return
 	visible = on
+	_layer.visible = on
 	if on:
 		_was_paused = get_tree().paused
 		get_tree().paused = true

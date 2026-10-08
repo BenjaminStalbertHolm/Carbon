@@ -171,8 +171,20 @@ func _activate_next_task() -> void:
 		var doc := instantiate(String(doc_id))
 		_gs().add_doc(doc, "inbox")
 		ids.append(String(doc_id))
+	if active_task == "P-1D":
+		_attach_form_carbon("P-1D")
 	canister_arrived.emit(ids)
 	task_activated.emit(active_task)
+
+
+## Spec 14.4 (Task 1, P-1D): the duplicate form is pre-assembled with a carbon, so it behaves as a sheet with a
+## carbon set (spec 8.5). The carbon is attached to the form the way take_blank_sheet attaches one to a sheet.
+func _attach_form_carbon(form_id: String) -> void:
+	var g := _gs()
+	var form: Dictionary = g.docs[form_id]
+	var carbon_id := form_id + "-CARBON"
+	g.add_doc(Doc.make_carbon(form, carbon_id), "attached")
+	form.twin = carbon_id
 
 
 ## Lamp (spec 13.5). Before the End of Shift memo it only clicks.
