@@ -65,9 +65,11 @@ class PageDraw extends Node2D:
 	var doc: Dictionary = {}
 	var page_index := 0
 	var bars_fn: Callable
+	var painter: Callable  # the renderer's _paint, bound to it
 
 	func _draw() -> void:
-		paint_page(self, doc, page_index, bars_fn)
+		if painter.is_valid():
+			painter.call(self, doc, page_index, bars_fn)
 
 
 # --- Cached textures ---------------------------------------------------------------
@@ -97,6 +99,7 @@ func page_texture(doc: Dictionary, page_index: int) -> ViewportTexture:
 	draw.doc = doc.duplicate(true)
 	draw.page_index = page_index
 	draw.bars_fn = bars_callable()
+	draw.painter = Callable(self, "_paint")
 	vp.add_child(draw)
 	add_child(vp)
 	_cache[key] = {"hash": h, "vp": vp}
@@ -108,6 +111,10 @@ func release_doc(doc_id: String) -> void:
 	for key in _cache.keys():
 		if String(key).begins_with(doc_id + "|"):
 			_free_entry(key)
+
+
+func _paint(ci: CanvasItem, doc: Dictionary, page_index: int, bars_fn: Callable) -> void:
+	paint_page(ci, doc, page_index, bars_fn)
 
 
 func _free_entry(key: String) -> void:
@@ -171,8 +178,10 @@ static func hand_baseline(row: int) -> float:
 	return hand_row_top(row) + FONT_HAND.get_ascent(HAND_SIZE)
 
 
+## Handwriting sits on a baseline 34 px below the row top (the font ascent), so
+## its visual middle is about 9 px above the baseline, not the middle of the row.
 static func hand_bar_centre_y(row: int) -> float:
-	return hand_row_top(row) + DocModel.HAND_LINE_H * 0.5
+	return hand_baseline(row) - 9.0
 
 
 static func hand_width(text: String) -> float:

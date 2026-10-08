@@ -103,7 +103,7 @@ func open(docs: Array, start_index: int, mode: String) -> void:
 		_prev_mouse_mode = Input.mouse_mode
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	visible = true
-	_show_current(false)
+	_show_current()
 
 
 ## Closes the view and emits closed.
@@ -153,7 +153,7 @@ func current_position() -> int:
 ## Shows the current page again (after the document changed, for example a stamp).
 func refresh() -> void:
 	if visible:
-		_show_current(false)
+		_show_current()
 
 
 ## Steps to another page of the flat list. Emits page_changed on a change.
@@ -164,7 +164,7 @@ func step(delta: int) -> void:
 	if np == _pos:
 		return
 	_pos = np
-	_show_current(true)
+	_show_current()
 	page_changed.emit(_pos)
 
 
@@ -176,7 +176,7 @@ func page_rect() -> Rect2:
 	return Rect2((win.x - pw) * 0.5, (win.y - ph) * 0.5 - _scroll, pw, ph)
 
 
-func _show_current(_from_step: bool) -> void:
+func _show_current() -> void:
 	if _pos < 0 or _pos >= _seq.size():
 		return
 	var doc: Dictionary = _docs[_seq[_pos][0]]

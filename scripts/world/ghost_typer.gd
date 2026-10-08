@@ -88,7 +88,10 @@ class Core:
 		if in_frustum:
 			_stop(now)
 		var fired := trig.step(delta, unseen, distance, in_frustum)
-		if removed or in_frustum or not fired:
+		if removed:
+			_stop(now)
+			return
+		if in_frustum or not fired:
 			return
 		if done >= lines.size():
 			return

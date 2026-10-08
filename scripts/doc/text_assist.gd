@@ -36,7 +36,7 @@ func _init() -> void:
 ## handwritten pages give their wrapped rows. Trailing blank rows are dropped.
 static func plain_lines(doc: Dictionary, page_index: int, bars_fn: Callable) -> Array:
 	var page: Dictionary = doc.pages[page_index]
-	var hand := not page.paragraphs.is_empty()
+	var hand: bool = not page.paragraphs.is_empty()
 	var kind := "hand" if hand else "typed"
 	var rows: Array = []
 	if hand:
