@@ -1,0 +1,45 @@
+; Engine configuration file.
+; Spec: CARBON_SPEC.md section 3.1 (engine settings) and section 3.3 (autoloads).
+
+config_version=5
+
+[application]
+
+config/name="CARBON"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3", "Compatibility")
+run/max_fps=60
+
+[autoload]
+
+GameState="*res://scripts/autoload/game_state.gd"
+DayDirector="*res://scripts/autoload/day_director.gd"
+AudioDirector="*res://scripts/autoload/audio_director.gd"
+Gaze="*res://scripts/autoload/gaze.gd"
+UnseenChanges="*res://scripts/autoload/unseen_changes.gd"
+Cadence="*res://scripts/autoload/cadence.gd"
+TextTokens="*res://scripts/autoload/text_tokens.gd"
+SaveSystem="*res://scripts/autoload/save_system.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=960
+window/size/resizable=true
+window/size/mode=0
+window/stretch/mode="disabled"
+window/vsync/vsync_mode=1
+
+[physics]
+
+common/physics_ticks_per_second=60
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0, 0, 0, 1)
+anti_aliasing/quality/msaa_3d=0
+anti_aliasing/quality/screen_space_aa=0
+anti_aliasing/quality/use_debanding=false
+textures/vram_compression/import_etc2_astc=true

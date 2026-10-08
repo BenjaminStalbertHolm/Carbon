@@ -1,0 +1,9 @@
+# Godot editor cache and generated builds
+.godot/
+build/
+export_credentials.cfg
+*.tmp
+
+# Python tools
+__pycache__/
+.venv/
