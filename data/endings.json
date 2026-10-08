@@ -1,0 +1,34 @@
+{
+  "A": {
+    "ghost_lines": [
+      "CLERK 0412 HAS BEEN REASSIGNED."
+    ],
+    "title_lines": [
+      "CONTINUITY IS EVERYTHING."
+    ],
+    "nameplate_desk4": "0413"
+  },
+  "B": {
+    "refusal_memo": {
+      "re": "ORDER RO-5",
+      "lines": [
+        "ORDER RO-5 HAS BEEN RETURNED UNPROCESSED.",
+        "CLERK 0412 IS DISMISSED FOR THE DAY.",
+        "THE EXIT IS OPEN."
+      ]
+    },
+    "end_lines": [
+      "CLERK 0412 IS AT THEIR DESK."
+    ],
+    "nameplate_desk4": "{PLAYER_NAME}"
+  },
+  "C": {
+    "carbon_ghost_lines_fixed": [
+      "RECORD RESTORED",
+      "{PLAYER_NAME}"
+    ],
+    "title_lines": [
+      "THE RECORD IS KEPT."
+    ]
+  }
+}

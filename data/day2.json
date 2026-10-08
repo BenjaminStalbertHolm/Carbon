@@ -1,0 +1,285 @@
+{
+  "day": 2,
+  "documents": {
+    "T-2-COVER": {
+      "kind": "cover",
+      "style": "typed",
+      "ink": "black",
+      "re": "T-2 TRANSCRIPTION ORDER",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "ATTACHED: CIRCULAR 22/C.",
+            "TYPE A CLEAN COPY FOR THE ARCHIVE.",
+            "USE A CARBON.",
+            "RETURN YOUR TYPED COPY BY TUBE."
+          ]
+        }
+      ]
+    },
+    "C-22": {
+      "kind": "circular",
+      "style": "typed",
+      "ink": "black",
+      "header": false,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "BUREAU OF CONTINUITY",
+            "CIRCULAR 22/C — ON THE KEEPING OF RECORDS",
+            "",
+            "A THING RECORDED IS A THING THAT WAS. A THING UNRECORDED WAS NOT.",
+            "CLERKS ARE REMINDED THAT THE REGISTRY DOES NOT DESCRIBE THE",
+            "WORLD; IT MAINTAINS IT. WHERE A RECORD AND A MEMORY DISAGREE,",
+            "THE RECORD IS TO BE PREFERRED.",
+            "",
+            "CLERK 0412 HAS LISTED '{FOND_WORD}' AS A WORD OF PERSONAL",
+            "ATTACHMENT. THIS HAS BEEN ENTERED IN THE REGISTER."
+          ]
+        }
+      ]
+    },
+    "RO-2": {
+      "kind": "order",
+      "style": "typed",
+      "ink": "black",
+      "header": false,
+      "stampable": true,
+      "redactable": true,
+      "pages": [
+        {
+          "lines": [
+            "BUREAU OF CONTINUITY — REGISTRY",
+            "REDACTION ORDER RO-2",
+            "",
+            "THE FOLLOWING ENTRIES ARE TO BE REDACTED IN FULL:",
+            "03, 05, 09, 10.",
+            "STAMP PROCESSED WHEN COMPLETE. RETURN BY TUBE.",
+            "",
+            "CITIZEN REGISTER — EXTRACT — WARD VII",
+            "NO  NAME                       REG. NO.  ADDRESS",
+            "01  ADLER, MARTA               3301447   2 GLASSWORKS ROW",
+            "02  BRANDT, OSKAR              3302918   2 GLASSWORKS ROW",
+            "03  DOBRA, KASIMIR             3307752   9 KESSEL STREET",
+            "04  ENGEL, RUTH                3308110   11 KESSEL STREET",
+            "05  FELL, ODETTE               3309264   11 KESSEL STREET",
+            "06  GRAU, TOBIAS               3311039   3 TANNERY LANE",
+            "07  HOLT, VERA                 3312580   3 TANNERY LANE",
+            "08  KOVAC, PAVEL               3314476   5 TANNERY LANE",
+            "09  MORAVEC, AUREL             3390715   14 KESSEL STREET",
+            "10  MORAVEC, ILSE              3390716   14 KESSEL STREET",
+            "11  NADLER, JOSEF              3391208   16 KESSEL STREET",
+            "12  ORBAN, LISL                3392054   1 CANAL STEPS"
+          ]
+        }
+      ],
+      "register": [
+        {
+          "key": "01",
+          "name": "ADLER, MARTA",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        },
+        {
+          "key": "02",
+          "name": "BRANDT, OSKAR",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        },
+        {
+          "key": "03",
+          "name": "DOBRA, KASIMIR",
+          "entity": "dobra",
+          "listed": true,
+          "clerk_desk": null
+        },
+        {
+          "key": "04",
+          "name": "ENGEL, RUTH",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        },
+        {
+          "key": "05",
+          "name": "FELL, ODETTE",
+          "entity": "fell",
+          "listed": true,
+          "clerk_desk": null
+        },
+        {
+          "key": "06",
+          "name": "GRAU, TOBIAS",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        },
+        {
+          "key": "07",
+          "name": "HOLT, VERA",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        },
+        {
+          "key": "08",
+          "name": "KOVAC, PAVEL",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        },
+        {
+          "key": "09",
+          "name": "MORAVEC, AUREL",
+          "entity": "aurel",
+          "listed": true,
+          "clerk_desk": null
+        },
+        {
+          "key": "10",
+          "name": "MORAVEC, ILSE",
+          "entity": "ilse",
+          "listed": true,
+          "clerk_desk": null
+        },
+        {
+          "key": "11",
+          "name": "NADLER, JOSEF",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        },
+        {
+          "key": "12",
+          "name": "ORBAN, LISL",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        }
+      ],
+      "listed": [
+        "03",
+        "05",
+        "09",
+        "10"
+      ]
+    },
+    "S-2-COVER": {
+      "kind": "cover",
+      "style": "typed",
+      "ink": "black",
+      "re": "S-2 STAMP BATCH",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "FOUR APPLICATIONS FOR CERTIFICATE OF RESIDENCE.",
+            "APPROVE IF THE REGISTRY NUMBER HAS SEVEN DIGITS",
+            "AND THE WARD IS III OR IV.",
+            "WARD VII IS NO LONGER ACCEPTED.",
+            "DENY OTHERWISE.",
+            "RETURN THE BATCH BY TUBE."
+          ]
+        }
+      ]
+    },
+    "S-2": {
+      "kind": "batch",
+      "style": "typed",
+      "ink": "black",
+      "header": false,
+      "stampable": true,
+      "redactable": false,
+      "pages": [
+        {
+          "app": {
+            "name": "ADLER, MARTA",
+            "reg": "3301447",
+            "ward": "VII",
+            "date": "04.XI"
+          },
+          "correct": "DENIED"
+        },
+        {
+          "app": {
+            "name": "PRUSS, ELKE",
+            "reg": "4475521",
+            "ward": "IV",
+            "date": "04.XI"
+          },
+          "correct": "APPROVED"
+        },
+        {
+          "app": {
+            "name": "MORAVEC, ILSE",
+            "reg": "3390716",
+            "ward": "VII",
+            "date": "04.XI"
+          },
+          "correct": "DENIED"
+        },
+        {
+          "app": {
+            "name": "RANDA, MILO",
+            "reg": "221904",
+            "ward": "III",
+            "date": "04.XI"
+          },
+          "correct": "DENIED"
+        }
+      ]
+    },
+    "NB-2": {
+      "kind": "notebook",
+      "style": "hand",
+      "ink": "black",
+      "header": false,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "paragraphs": [
+            "Day 2. I typed a letter yesterday. Today the letter says something else. I kept the carbon. The carbon still says what I typed. Keep the carbons. — H.V."
+          ]
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": "T-2",
+      "canister": [
+        "T-2-COVER",
+        "C-22"
+      ],
+      "transcription": {
+        "source_doc": "C-22",
+        "skip_first_line": true
+      }
+    },
+    {
+      "id": "RO-2",
+      "canister": [
+        "RO-2"
+      ],
+      "output": "RO-2"
+    },
+    {
+      "id": "S-2",
+      "canister": [
+        "S-2-COVER",
+        "S-2"
+      ],
+      "output": "S-2"
+    }
+  ]
+}

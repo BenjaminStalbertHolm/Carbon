@@ -229,7 +229,6 @@ def paper_in() -> np.ndarray:
 def paper_out() -> np.ndarray:
     # Spec says "reversed envelope (fast rise, slow fall)". A Hann window is
     # symmetric, so the envelope here is an explicit fast-rise/slow-fall shape.
-    # TODO(QUESTION-4): placeholder envelope, see QUESTIONS.md.
     rng = rng_for("paper_out")
     n = ms(600)
     t = t_of(n)

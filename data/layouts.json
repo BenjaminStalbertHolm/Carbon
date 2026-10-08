@@ -1,0 +1,18 @@
+{
+  "app_r2": {
+    "lines": [
+      "BUREAU OF CONTINUITY — REGISTRY",
+      "FORM R-2     APPLICATION FOR CERTIFICATE OF RESIDENCE",
+      "",
+      "NAME (SURNAME, GIVEN):   {name}",
+      "REGISTRY NUMBER:         {reg}",
+      "WARD:                    {ward}",
+      "DATE OF APPLICATION:     {date}",
+      "",
+      "",
+      "",
+      "",
+      "FOR REGISTRY USE — STAMP BELOW"
+    ]
+  }
+}

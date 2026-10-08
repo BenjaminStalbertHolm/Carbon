@@ -1,0 +1,254 @@
+{
+  "day": 4,
+  "documents": {
+    "T-4-COVER": {
+      "kind": "cover",
+      "style": "typed",
+      "ink": "black",
+      "re": "T-4 TRANSCRIPTION ORDER",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "ATTACHED: CORRESPONDENCE ADDRESSED TO THIS OFFICE.",
+            "TYPE A CLEAN COPY FOR THE ARCHIVE.",
+            "DO NOT REPLY.",
+            "USE A CARBON.",
+            "RETURN YOUR TYPED COPY BY TUBE."
+          ]
+        }
+      ]
+    },
+    "L-4": {
+      "kind": "letter",
+      "style": "hand",
+      "ink": "black",
+      "header": false,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "paragraphs": [
+            "Dear {PLAYER_FIRST_NAME_TC},",
+            "You haven't called. Your door was open and your things were still there. The landlord says the room was never let to anyone. I told him he was wrong. I have your coat. Please, if you can read this, write back. Anything. Even just your name.",
+            "{NEXT_OF_KIN_TC}"
+          ]
+        }
+      ]
+    },
+    "RO-4": {
+      "kind": "order",
+      "style": "typed",
+      "ink": "black",
+      "header": false,
+      "stampable": true,
+      "redactable": true,
+      "pages": [
+        {
+          "lines": [
+            "BUREAU OF CONTINUITY — REGISTRY",
+            "REDACTION ORDER RO-4",
+            "",
+            "THE FOLLOWING ENTRIES ARE TO BE REDACTED IN FULL:",
+            "02, 04, 06{CARRIED_IDS}.",
+            "STAMP PROCESSED WHEN COMPLETE. RETURN BY TUBE.",
+            "",
+            "CITIZEN REGISTER — EXTRACT — WARD IV",
+            "NO  NAME                       REG. NO.  ADDRESS",
+            "01  ALBRECHT, SIMON            4470011   7 MILL ROAD",
+            "02  {NEXT_OF_KIN}              4470412   ADDRESS WITHHELD",
+            "03  BERG, ANNIKA               4470876   7 MILL ROAD",
+            "04  HALVORSEN, PETRA           4471209   21 MILL ROAD",
+            "05  LEHR, DORIT                4472300   2 BELL YARD",
+            "06  WEISS, CORA                4473318   CLERK, HALL C",
+            "07  ZEMAN, FILIP               4474090   2 BELL YARD",
+            "{CARRIED_BLOCK}"
+          ]
+        }
+      ],
+      "register": [
+        {
+          "key": "01",
+          "name": "ALBRECHT, SIMON",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        },
+        {
+          "key": "02",
+          "name": "{NEXT_OF_KIN}",
+          "entity": "nok",
+          "listed": true,
+          "clerk_desk": null
+        },
+        {
+          "key": "03",
+          "name": "BERG, ANNIKA",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        },
+        {
+          "key": "04",
+          "name": "HALVORSEN, PETRA",
+          "entity": "halvorsen",
+          "listed": true,
+          "clerk_desk": null
+        },
+        {
+          "key": "05",
+          "name": "LEHR, DORIT",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        },
+        {
+          "key": "06",
+          "name": "WEISS, CORA",
+          "entity": "weiss",
+          "listed": true,
+          "clerk_desk": 9
+        },
+        {
+          "key": "07",
+          "name": "ZEMAN, FILIP",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        }
+      ],
+      "listed": [
+        "02",
+        "04",
+        "06"
+      ]
+    },
+    "S-4-COVER": {
+      "kind": "cover",
+      "style": "typed",
+      "ink": "black",
+      "re": "S-4 STAMP BATCH",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "THREE APPLICATIONS HAVE BEEN RECEIVED UNDER ONE NAME.",
+            "APPROVE ONE. DENY THE OTHERS.",
+            "RETURN THE BATCH BY TUBE."
+          ]
+        }
+      ]
+    },
+    "S-4": {
+      "kind": "batch",
+      "style": "typed",
+      "ink": "black",
+      "header": false,
+      "stampable": true,
+      "redactable": false,
+      "pages": [
+        {
+          "app": {
+            "name": "{PLAYER_NAME}",
+            "reg": "0412000",
+            "ward": "IV",
+            "date": "06.XI"
+          },
+          "correct": null
+        },
+        {
+          "app": {
+            "name": "{PLAYER_NAME}",
+            "reg": "0411000",
+            "ward": "IV",
+            "date": "06.XI"
+          },
+          "correct": null
+        },
+        {
+          "app": {
+            "name": "{PLAYER_NAME}",
+            "reg": "",
+            "ward": "",
+            "date": "07.XI"
+          },
+          "correct": null
+        }
+      ]
+    },
+    "EOS-DAY4": {
+      "kind": "end_of_shift",
+      "style": "typed",
+      "ink": "black",
+      "re": "END OF SHIFT",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "END OF SHIFT.",
+            "FILE YOUR CARBONS IN THE LOWER DRAWER.",
+            "SWITCH OFF YOUR LAMP.",
+            "TOMORROW IS THE LAST DAY OF THE WEEK."
+          ]
+        }
+      ]
+    },
+    "NB-4": {
+      "kind": "notebook",
+      "style": "hand",
+      "ink": "black",
+      "header": false,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "paragraphs": [
+            "Day 4. They will give you a name you know. Refusing doesn't save anyone. It only means they stay, and they watch you. I couldn't decide which was worse. — H.V."
+          ]
+        }
+      ],
+      "append_if": {
+        "state": "p1_q4",
+        "value": "NO",
+        "paragraphs": [
+          "They asked me if I'd worked here before. I said no as well."
+        ]
+      }
+    }
+  },
+  "tasks": [
+    {
+      "id": "T-4",
+      "canister": [
+        "T-4-COVER",
+        "L-4"
+      ],
+      "transcription": {
+        "source_doc": "L-4",
+        "skip_first_line": false
+      }
+    },
+    {
+      "id": "RO-4",
+      "canister": [
+        "RO-4",
+        "GHOST-MEMO"
+      ],
+      "output": "RO-4"
+    },
+    {
+      "id": "S-4",
+      "canister": [
+        "S-4-COVER",
+        "S-4"
+      ],
+      "output": "S-4"
+    }
+  ]
+}

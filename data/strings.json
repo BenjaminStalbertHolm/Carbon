@@ -1,0 +1,202 @@
+{
+  "content_note": [
+    "THIS IS A GAME ABOUT RECORDS, ERASURE AND COMPLICITY.",
+    "IT CONTAINS NO SUDDEN FRIGHTS.",
+    "IT MAY BE UNSETTLING.",
+    "",
+    "PRESS ANY KEY."
+  ],
+  "title_lines": [
+    "CARBON",
+    "",
+    "BEGIN",
+    "CONTINUE — {DAYNAME}",
+    "SETTINGS",
+    "QUIT"
+  ],
+  "title_options": [
+    "BEGIN",
+    "CONTINUE — {DAYNAME}",
+    "SETTINGS",
+    "QUIT"
+  ],
+  "erase_prompt": "THIS WILL ERASE YOUR WEEK.",
+  "yes": "YES",
+  "no": "NO",
+  "back": "BACK",
+  "folder": {
+    "tab": "PERSONNEL — 0412",
+    "options": [
+      "RESUME",
+      "SETTINGS",
+      "QUIT TO TITLE",
+      "QUIT TO DESKTOP"
+    ],
+    "quit_warning": "PROGRESS SINCE THE START OF {DAYNAME} WILL BE LOST."
+  },
+  "settings": {
+    "names": [
+      "MOUSE SENSITIVITY",
+      "INVERT MOUSE Y",
+      "MASTER VOLUME",
+      "FULLSCREEN",
+      "INTERNAL RESOLUTION",
+      "DITHER",
+      "REDUCE FLICKER",
+      "TEXT ASSIST",
+      "BACK"
+    ],
+    "values": {
+      "INVERT MOUSE Y": [
+        "OFF",
+        "ON"
+      ],
+      "FULLSCREEN": [
+        "OFF",
+        "ON"
+      ],
+      "INTERNAL RESOLUTION": [
+        "LOW (320×240)",
+        "HIGH (640×480)"
+      ],
+      "DITHER": [
+        "ON",
+        "OFF"
+      ],
+      "REDUCE FLICKER": [
+        "OFF",
+        "ON"
+      ],
+      "TEXT ASSIST": [
+        "OFF",
+        "ON"
+      ]
+    }
+  },
+  "day_titles": {
+    "1": "MONDAY",
+    "2": "TUESDAY",
+    "3": "WEDNESDAY",
+    "4": "THURSDAY",
+    "5": "FRIDAY"
+  },
+  "quota_board": [
+    "HALL C",
+    "QUOTA",
+    "{occupied}/12"
+  ],
+  "door_labels": {
+    "supervisor": "SUPERVISOR",
+    "exit": "EXIT"
+  },
+  "nameplates": {
+    "1": "I. DRESCH",
+    "2": "P. MAREK",
+    "3": "L. HOLLIS",
+    "4": "0412",
+    "5": "S. KAVANAGH",
+    "6": "O. LINDQVIST",
+    "7": "J. ABEL",
+    "8": "N. FERRAND",
+    "9": "C. WEISS",
+    "10": "V. ORLO",
+    "11": "E. MARCH",
+    "12": ""
+  },
+  "stamp_words": {
+    "APPROVED": "APPROVED",
+    "DENIED": "DENIED",
+    "PROCESSED": "PROCESSED",
+    "RETURNED": "RETURNED — UNPROCESSED"
+  },
+  "no_such_addressee": "NO SUCH ADDRESSEE",
+  "memo_header": [
+    "BUREAU OF CONTINUITY — REGISTRY, HALL C",
+    "MEMORANDUM",
+    "TO:   CLERK 0412",
+    "FROM: THE SUPERVISOR"
+  ],
+  "memo_re_line": "RE:   {RE}",
+  "end_of_shift": [
+    "END OF SHIFT.",
+    "FILE YOUR CARBONS IN THE LOWER DRAWER.",
+    "SWITCH OFF YOUR LAMP."
+  ],
+  "end_of_shift_day4_extra": "TOMORROW IS THE LAST DAY OF THE WEEK.",
+  "ghost_lines": {
+    "3": [
+      "IS THIS HOW YOU TYPE",
+      "{PLAYER_NAME} TYPES LIKE THIS",
+      "I LEARNED IT FROM YOU"
+    ],
+    "4": [
+      "I FINISHED YOUR LETTER",
+      "DEAR {NEXT_OF_KIN} I AM FINE",
+      "DO NOT LOOK FOR ME"
+    ]
+  },
+  "morning": {
+    "accuracy_ok": "TRANSCRIPTION {X}: ACCEPTABLE.",
+    "accuracy_errors": "TRANSCRIPTION {X}: ERRORS NOTED.",
+    "accuracy_errors_owner": "TRANSCRIPTION {X}: ERRORS NOTED. {OWNER} WORDS ARE NOT YOURS TO CHANGE.",
+    "owner": {
+      "T-1": "THE CITIZEN'S",
+      "T-2": "THE BUREAU'S",
+      "T-3": "THE CLERK'S"
+    },
+    "batch_correct": "BATCH {X}: CORRECT.",
+    "batch_partial": "BATCH {X}: {n} OF {total} CORRECT.",
+    "carbons_unfiled": "UNFILED CARBONS WERE FOUND AT DESK 4. THIS HAS BEEN NOTED.",
+    "contradiction": "CONTRADICTORY STAMPS WERE FOUND. THE FIRST STAMP HAS BEEN USED.",
+    "closing": "ACCURACY IS CONTINUITY.",
+    "moravec_not_approved": "APPLICATION MORAVEC, A. HAS BEEN APPROVED REGARDLESS.",
+    "moravec_approved": "APPLICATION MORAVEC, A. WAS DATED TOMORROW. THIS HAS BEEN OVERLOOKED.",
+    "p1_q4_yes": "FORM P-1: OUR RECORDS SHOW NO PRIOR EMPLOYMENT. PLEASE DO NOT MAKE JOKES ON OFFICIAL FORMS.",
+    "p1_q4_other": "FORM P-1: QUESTION 4 REQUIRES YES OR NO. WE HAVE ENTERED NO.",
+    "signature_mismatch": "FORM P-1: YOUR SIGNATURE DOES NOT MATCH YOUR NAME. WE HAVE KEPT THE NAME.",
+    "ro2_processed": "ORDER RO-2: PROCESSED. THANK YOU.",
+    "ro2_complete": "ORDER RO-2: COMPLETE. IT WAS NOT STAMPED CORRECTLY. THIS HAS BEEN OVERLOOKED.",
+    "ro2_remain": "ORDER RO-2: {k} OF 4 ENTRIES REMAIN. THEY WILL BE CARRIED FORWARD.",
+    "ro2_returned": "ORDER RO-2: RETURNED UNPROCESSED. THE ENTRIES WILL BE CARRIED FORWARD.",
+    "ro3_processed": "ORDER RO-3: PROCESSED. THANK YOU.",
+    "ro3_complete": "ORDER RO-3: COMPLETE. IT WAS NOT STAMPED CORRECTLY. THIS HAS BEEN OVERLOOKED.",
+    "ro3_remain": "ORDER RO-3: {k} OF 3 ENTRIES REMAIN. THEY HAVE BEEN ASKED TO WAIT.",
+    "ro3_returned": "ORDER RO-3: RETURNED UNPROCESSED. THEY HAVE BEEN ASKED TO WAIT.",
+    "ro4_processed": "ORDER RO-4: PROCESSED. THANK YOU.",
+    "ro4_complete": "ORDER RO-4: COMPLETE. IT WAS NOT STAMPED CORRECTLY. THIS HAS BEEN OVERLOOKED.",
+    "ro4_remain": "ORDER RO-4: {k} OF {n} ENTRIES REMAIN. NOTHING FURTHER WILL BE CARRIED FORWARD.",
+    "ro4_returned": "ORDER RO-4: RETURNED UNPROCESSED. NOTHING FURTHER WILL BE CARRIED FORWARD.",
+    "f3_q1_correct": "F-3 QUESTION 1: CORRECT.",
+    "f3_q1_wrong": "F-3 QUESTION 1: THERE ARE TWELVE. THERE HAVE ALWAYS BEEN TWELVE.",
+    "f3_q2_yes": "F-3 QUESTION 2: DESK 12 IS UNASSIGNED. PLEASE REST YOUR EYES.",
+    "f3_q2_correct": "F-3 QUESTION 2: CORRECT.",
+    "f3_q2_other": "F-3 QUESTION 2: YES OR NO.",
+    "f3_q3_thanks": "F-3 QUESTION 3: THANK YOU FOR YOUR HONESTY. FILE THEM.",
+    "f3_q3_count": "F-3 QUESTION 3: YOU STATED THAT YOU DO NOT KEEP CARBONS. PLEASE COUNT AGAIN.",
+    "f3_q3_correct": "F-3 QUESTION 3: CORRECT.",
+    "f3_q3_nothing": "F-3 QUESTION 3: YOU HAVE NOTHING TO KEEP.",
+    "f3_q3_other": "F-3 QUESTION 3: YES OR NO.",
+    "f3_q4_confirmed": "F-3 QUESTION 4: CONFIRMED.",
+    "f3_q4_noted": "F-3 QUESTION 4: NOTED. WE WILL USE THE FIRST ONE.",
+    "t4_no_longer": "TRANSCRIPTION T-4: CORRESPONDENCE OF THIS KIND WILL NO LONGER BE DELIVERED.",
+    "s4_a": "BATCH S-4: YOU APPROVED THE APPLICATION NUMBERED 0412000. THE OTHERS HAVE BEEN WITHDRAWN.",
+    "s4_b": "BATCH S-4: YOU APPROVED THE APPLICATION NUMBERED 0411000. THE OTHERS HAVE BEEN WITHDRAWN.",
+    "s4_c": "BATCH S-4: YOU APPROVED THE APPLICATION WITH NO NUMBER. THE OTHERS HAVE BEEN WITHDRAWN.",
+    "s4_none": "BATCH S-4: YOU APPROVED NONE. ONE HAS BEEN APPROVED ON YOUR BEHALF.",
+    "s4_multiple": "BATCH S-4: YOU APPROVED MORE THAN ONE. ONLY ONE CAN BE CORRECT. ONE HAS BEEN RETAINED.",
+    "letter_sent": "YOUR LETTER HAS BEEN SENT."
+  },
+  "morning_re": {
+    "M2": "MONDAY",
+    "M3": "TUESDAY",
+    "M4": "WEDNESDAY",
+    "M5": "THURSDAY"
+  },
+  "ending_lines": {
+    "A_title": "CONTINUITY IS EVERYTHING.",
+    "B_end": "CLERK 0412 IS AT THEIR DESK.",
+    "C_title": "THE RECORD IS KEPT.",
+    "A_ghost": "CLERK 0412 HAS BEEN REASSIGNED.",
+    "C_first": "RECORD RESTORED"
+  }
+}

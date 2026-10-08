@@ -1,0 +1,256 @@
+{
+  "day": 1,
+  "documents": {
+    "M1-WELCOME": {
+      "kind": "memo",
+      "style": "typed",
+      "ink": "black",
+      "re": "COMMENCEMENT OF DUTIES",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "WELCOME TO HALL C.",
+            "YOUR DESK IS NO. 4.",
+            "YOUR PREDECESSOR HAS BEEN REASSIGNED.",
+            "",
+            "YOUR DUTIES ARE AS FOLLOWS:",
+            "1. READ WHAT YOU ARE GIVEN.",
+            "2. TYPE WHAT YOU ARE ASKED TO TYPE.",
+            "3. STAMP WHAT REQUIRES STAMPING.",
+            "4. REDACT WHAT REQUIRES REDACTION.",
+            "5. RETURN ALL WORK BY TUBE.",
+            "",
+            "WHERE A CARBON IS REQUIRED, TAKE A SHEET FROM THE TRAY.",
+            "A CARBON WILL BE PROVIDED.",
+            "FILE CARBONS IN THE LOWER DRAWER AT THE END OF EACH SHIFT.",
+            "",
+            "ACCURACY IS CONTINUITY. CONTINUITY IS EVERYTHING."
+          ]
+        }
+      ]
+    },
+    "P-1": {
+      "kind": "form",
+      "style": "typed",
+      "ink": "black",
+      "header": false,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "BUREAU OF CONTINUITY — REGISTRY",
+            "FORM P-1                PERSONNEL INTAKE",
+            "",
+            "1. FULL NAME",
+            "   {{F1:24}}",
+            "",
+            "2. NEXT OF KIN (FULL NAME)",
+            "   {{F2:24}}",
+            "",
+            "3. A WORD YOU ARE FOND OF (ONE WORD)",
+            "   {{F3:12}}",
+            "",
+            "4. HAVE YOU WORKED FOR THE BUREAU BEFORE? (YES/NO)",
+            "   {{F4:3}}",
+            "",
+            "5. SIGNATURE (TYPE YOUR FULL NAME)",
+            "   {{F5:24}}",
+            "",
+            "RETURN BY TUBE."
+          ]
+        }
+      ]
+    },
+    "T-1-COVER": {
+      "kind": "cover",
+      "style": "typed",
+      "ink": "black",
+      "re": "T-1 TRANSCRIPTION ORDER",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "ATTACHED: CORRESPONDENCE RECEIVED, WARD VII.",
+            "TYPE A CLEAN COPY FOR THE ARCHIVE.",
+            "DO NOT CORRECT THE CITIZEN'S GRAMMAR.",
+            "USE A CARBON.",
+            "RETURN YOUR TYPED COPY BY TUBE."
+          ]
+        }
+      ]
+    },
+    "L-1": {
+      "kind": "letter",
+      "style": "hand",
+      "ink": "black",
+      "header": false,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "paragraphs": [
+            "To the Registry,",
+            "I write regarding my brother, Aurel Moravec, last seen at the tram stop on Kessel Street. His name no longer appears in the parish book. The priest says there was never a page for him. I have his coat. I have his letters. I am asking only that you look again.",
+            "Dr. Ilse Moravec",
+            "14 Kessel Street, Ward VII"
+          ]
+        }
+      ]
+    },
+    "S-1-COVER": {
+      "kind": "cover",
+      "style": "typed",
+      "ink": "black",
+      "re": "S-1 STAMP BATCH",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "FIVE APPLICATIONS FOR CERTIFICATE OF RESIDENCE.",
+            "APPROVE IF THE REGISTRY NUMBER HAS SEVEN DIGITS",
+            "AND THE WARD IS III, IV OR VII.",
+            "DENY OTHERWISE.",
+            "RETURN THE BATCH BY TUBE."
+          ]
+        }
+      ]
+    },
+    "S-1": {
+      "kind": "batch",
+      "style": "typed",
+      "ink": "black",
+      "header": false,
+      "stampable": true,
+      "redactable": false,
+      "pages": [
+        {
+          "app": {
+            "name": "HALVORSEN, PETRA",
+            "reg": "4471209",
+            "ward": "IV",
+            "date": "03.XI"
+          },
+          "correct": "APPROVED"
+        },
+        {
+          "app": {
+            "name": "DUCHAMP, LIO",
+            "reg": "557812",
+            "ward": "III",
+            "date": "03.XI"
+          },
+          "correct": "DENIED"
+        },
+        {
+          "app": {
+            "name": "MORAVEC, AUREL",
+            "reg": "3390715",
+            "ward": "VII",
+            "date": "04.XI"
+          },
+          "correct": "APPROVED"
+        },
+        {
+          "app": {
+            "name": "KESSLER, HANNE",
+            "reg": "2208841",
+            "ward": "II",
+            "date": "03.XI"
+          },
+          "correct": "DENIED"
+        },
+        {
+          "app": {
+            "name": "VANCE, H.",
+            "reg": "0411000",
+            "ward": "IV",
+            "date": "03.XI"
+          },
+          "correct": "APPROVED"
+        }
+      ]
+    },
+    "EOS-STANDARD": {
+      "kind": "end_of_shift",
+      "style": "typed",
+      "ink": "black",
+      "re": "END OF SHIFT",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "END OF SHIFT.",
+            "FILE YOUR CARBONS IN THE LOWER DRAWER.",
+            "SWITCH OFF YOUR LAMP."
+          ]
+        }
+      ]
+    },
+    "NB-1": {
+      "kind": "notebook",
+      "style": "hand",
+      "ink": "black",
+      "header": false,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "paragraphs": [
+            "Day 1. Desk 4. They told me the last one was reassigned. Nobody here says where to. Nobody here says anything. — H.V."
+          ]
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": "P-1",
+      "canister": [
+        "P-1"
+      ],
+      "output": "P-1"
+    },
+    {
+      "id": "T-1",
+      "canister": [
+        "T-1-COVER",
+        "L-1"
+      ],
+      "transcription": {
+        "source_doc": "L-1",
+        "skip_first_line": false
+      }
+    },
+    {
+      "id": "S-1",
+      "canister": [
+        "S-1-COVER",
+        "S-1"
+      ],
+      "output": "S-1"
+    }
+  ],
+  "drift": {
+    "day3": {
+      "from": "YOUR PREDECESSOR HAS BEEN REASSIGNED.",
+      "to": "YOU HAVE NO PREDECESSOR."
+    },
+    "day5": {
+      "from": "WELCOME TO HALL C.",
+      "to": "WELCOME BACK TO HALL C."
+    }
+  },
+  "morning": [
+    "M1-WELCOME"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "T-1": [
+    {
+      "find": "MY BROTHER, AUREL MORAVEC,",
+      "replace": "A MAN,"
+    },
+    {
+      "find": "I AM ASKING ONLY THAT YOU LOOK AGAIN.",
+      "replace": "I WITHDRAW MY REQUEST."
+    }
+  ],
+  "T-2": [
+    {
+      "find": "WHERE A RECORD AND A MEMORY DISAGREE, THE RECORD IS TO BE PREFERRED.",
+      "replace": "THERE IS NO DISAGREEMENT."
+    }
+  ],
+  "T-3": [
+    {
+      "find": "I DO NOT REMEMBER THE FIRST YEAR.",
+      "replace": "I REMEMBER EVERY YEAR."
+    },
+    {
+      "find": "I HAVE ANSWERED THAT I DO NOT.",
+      "replace": "I HAVE ANSWERED."
+    }
+  ]
+}

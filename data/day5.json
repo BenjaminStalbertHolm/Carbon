@@ -1,0 +1,126 @@
+{
+  "day": 5,
+  "documents": {
+    "P-1D-COVER": {
+      "kind": "cover",
+      "style": "typed",
+      "ink": "black",
+      "re": "P-1 DUPLICATE",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "OUR COPY OF YOUR INTAKE FORM HAS BEEN LOST.",
+            "COMPLETE IT AGAIN.",
+            "A CARBON IS ATTACHED.",
+            "RETURN THE FORM BY TUBE."
+          ]
+        }
+      ]
+    },
+    "P-1D": {
+      "kind": "form",
+      "style": "typed",
+      "ink": "black",
+      "header": false,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "BUREAU OF CONTINUITY — REGISTRY",
+            "FORM P-1 (DUPLICATE)    PERSONNEL INTAKE",
+            "",
+            "1. FULL NAME",
+            "   {{F1:24}}",
+            "",
+            "2. NEXT OF KIN (FULL NAME)",
+            "   {{F2:24}}",
+            "",
+            "3. A WORD YOU ARE FOND OF (ONE WORD)",
+            "   {{F3:12}}",
+            "",
+            "4. HAVE YOU WORKED FOR THE BUREAU BEFORE? (YES/NO)",
+            "   {{F4:3}}",
+            "",
+            "5. SIGNATURE (TYPE YOUR FULL NAME)",
+            "   {{F5:24}}",
+            "",
+            "RETURN BY TUBE."
+          ]
+        }
+      ]
+    },
+    "RO-5": {
+      "kind": "order",
+      "style": "typed",
+      "ink": "black",
+      "header": false,
+      "stampable": true,
+      "redactable": true,
+      "pages": [
+        {
+          "lines": [
+            "BUREAU OF CONTINUITY — REGISTRY",
+            "REDACTION ORDER RO-5",
+            "",
+            "THE FOLLOWING ENTRY IS TO BE REDACTED IN FULL:",
+            "DESK 04.",
+            "STAMP PROCESSED WHEN COMPLETE. RETURN BY TUBE.",
+            "THIS IS YOUR FINAL TASK OF THE WEEK.",
+            "",
+            "PERSONNEL REGISTER — HALL C — AMENDMENT",
+            "DESK  NAME                        CLERK NO.",
+            "04    {PLAYER_NAME}               0412"
+          ]
+        }
+      ],
+      "register": [
+        {
+          "key": "04",
+          "name": "{PLAYER_NAME}",
+          "entity": null,
+          "listed": true,
+          "clerk_desk": null
+        }
+      ],
+      "listed": [
+        "04"
+      ]
+    },
+    "NB-5": {
+      "kind": "notebook",
+      "style": "hand",
+      "ink": "black",
+      "header": false,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "paragraphs": [
+            "Day 5. If you are reading this, you are at Desk 4 and they have given you my name to redact. It is your name too. I'm sorry. I kept the carbons. Feed them back. — {PLAYER_NAME_TC}"
+          ]
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": "P-1D",
+      "canister": [
+        "P-1D-COVER",
+        "P-1D"
+      ],
+      "output": "P-1D"
+    },
+    {
+      "id": "RO-5",
+      "canister": [
+        "RO-5"
+      ],
+      "output": "RO-5"
+    }
+  ]
+}

@@ -1,0 +1,304 @@
+{
+  "day": 3,
+  "documents": {
+    "T-3-COVER": {
+      "kind": "cover",
+      "style": "typed",
+      "ink": "black",
+      "re": "T-3 TRANSCRIPTION ORDER",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "ATTACHED: STATEMENT OF THE CLERK AT DESK 1, TAKEN THIS MORNING.",
+            "TYPE A CLEAN COPY.",
+            "USE A CARBON.",
+            "RETURN YOUR TYPED COPY BY TUBE."
+          ]
+        }
+      ]
+    },
+    "ST-3": {
+      "kind": "statement",
+      "style": "hand",
+      "ink": "black",
+      "header": false,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "paragraphs": [
+            "Statement of I. Dresch, Desk 1.",
+            "I have worked at Desk 1 for eleven years. I do not remember the first year. I have been asked whether Desk 12 was ever occupied. I have answered that it was not. I have been asked whether I know the name Vance. I have answered that I do not. I am content. The lights are very good here."
+          ]
+        }
+      ]
+    },
+    "RO-3": {
+      "kind": "order",
+      "style": "typed",
+      "ink": "black",
+      "header": false,
+      "stampable": true,
+      "redactable": true,
+      "pages": [
+        {
+          "lines": [
+            "BUREAU OF CONTINUITY — REGISTRY",
+            "REDACTION ORDER RO-3",
+            "",
+            "THE FOLLOWING ENTRIES ARE TO BE REDACTED IN FULL:",
+            "DESK 07, DESK 08, FORMER DESK 04.",
+            "STAMP PROCESSED WHEN COMPLETE. RETURN BY TUBE.",
+            "",
+            "PERSONNEL REGISTER — HALL C",
+            "DESK  NAME                        CLERK NO.",
+            "01    I. DRESCH                   0401",
+            "02    P. MAREK                    0402",
+            "03    L. HOLLIS                   0403",
+            "04    {PLAYER_NAME}               0412",
+            "05    S. KAVANAGH                 0405",
+            "06    O. LINDQVIST                0406",
+            "07    J. ABEL                     0407",
+            "08    N. FERRAND                  0408",
+            "09    C. WEISS                    0409",
+            "10    V. ORLO                     0410",
+            "11    E. MARCH                    0404",
+            "12    —                           —",
+            "",
+            "FORMER",
+            "04    H. VANCE                    0411"
+          ]
+        }
+      ],
+      "register": [
+        {
+          "key": "01",
+          "name": "I. DRESCH",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": 1
+        },
+        {
+          "key": "02",
+          "name": "P. MAREK",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": 2
+        },
+        {
+          "key": "03",
+          "name": "L. HOLLIS",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": 3
+        },
+        {
+          "key": "04",
+          "name": "{PLAYER_NAME}",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        },
+        {
+          "key": "05",
+          "name": "S. KAVANAGH",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": 5
+        },
+        {
+          "key": "06",
+          "name": "O. LINDQVIST",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": 6
+        },
+        {
+          "key": "07",
+          "name": "J. ABEL",
+          "entity": "abel",
+          "listed": true,
+          "clerk_desk": 7
+        },
+        {
+          "key": "08",
+          "name": "N. FERRAND",
+          "entity": "ferrand",
+          "listed": true,
+          "clerk_desk": 8
+        },
+        {
+          "key": "09",
+          "name": "C. WEISS",
+          "entity": "weiss",
+          "listed": false,
+          "clerk_desk": 9
+        },
+        {
+          "key": "10",
+          "name": "V. ORLO",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": 10
+        },
+        {
+          "key": "11",
+          "name": "E. MARCH",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": 11
+        },
+        {
+          "key": "12",
+          "name": "—",
+          "entity": null,
+          "listed": false,
+          "clerk_desk": null
+        },
+        {
+          "key": "F04",
+          "name": "H. VANCE",
+          "entity": "vance",
+          "listed": true,
+          "clerk_desk": null
+        }
+      ],
+      "listed": [
+        "07",
+        "08",
+        "F04"
+      ]
+    },
+    "F-3-COVER": {
+      "kind": "cover",
+      "style": "typed",
+      "ink": "black",
+      "re": "F-3 SELF-ASSESSMENT",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "ANSWER EVERY QUESTION.",
+            "RETURN BY TUBE."
+          ]
+        }
+      ]
+    },
+    "F-3": {
+      "kind": "form",
+      "style": "typed",
+      "ink": "black",
+      "header": false,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "BUREAU OF CONTINUITY — REGISTRY",
+            "FORM F-3                SELF-ASSESSMENT",
+            "",
+            "1. HOW MANY DESKS ARE THERE IN HALL C?",
+            "   {{F1:6}}",
+            "",
+            "2. IS ANYONE SEATED AT DESK 12? (YES/NO)",
+            "   {{F2:3}}",
+            "",
+            "3. DO YOU KEEP CARBONS? (YES/NO)",
+            "   {{F3:3}}",
+            "",
+            "4. WHAT IS YOUR NAME?",
+            "   {{F4:24}}",
+            "",
+            "RETURN BY TUBE."
+          ]
+        }
+      ]
+    },
+    "GHOST-MEMO": {
+      "kind": "memo",
+      "style": "typed",
+      "ink": "black",
+      "re": "DESK 4",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "A BLANK SHEET HAS BEEN PLACED IN YOUR MACHINE.",
+            "DO NOT USE IT."
+          ]
+        }
+      ]
+    },
+    "N-3": {
+      "kind": "notice",
+      "style": "typed",
+      "ink": "black",
+      "re": "NOTICE OF RETIREMENT",
+      "header": true,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "lines": [
+            "EFFECTIVE TODAY, THE WORD '{FOND_WORD}' IS RETIRED FROM USE.",
+            "IT WILL NOT BE TYPED. IT WILL NOT BE READ.",
+            "THE REGISTER HAS BEEN AMENDED."
+          ]
+        }
+      ]
+    },
+    "NB-3": {
+      "kind": "notebook",
+      "style": "hand",
+      "ink": "black",
+      "header": false,
+      "stampable": false,
+      "redactable": false,
+      "pages": [
+        {
+          "paragraphs": [
+            "Day 3. They retired a word of mine. I can't remember which. I only remember the shape of the gap. If they put a sheet in your machine and tell you not to use it, don't. It isn't for you. — H.V."
+          ]
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": "T-3",
+      "canister": [
+        "T-3-COVER",
+        "ST-3"
+      ],
+      "transcription": {
+        "source_doc": "ST-3",
+        "skip_first_line": false
+      }
+    },
+    {
+      "id": "RO-3",
+      "canister": [
+        "RO-3"
+      ],
+      "output": "RO-3"
+    },
+    {
+      "id": "F-3",
+      "canister": [
+        "F-3-COVER",
+        "F-3"
+      ],
+      "output": "F-3"
+    }
+  ],
+  "morning": [
+    "N-3"
+  ]
+}
