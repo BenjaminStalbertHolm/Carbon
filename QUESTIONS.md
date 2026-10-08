@@ -182,3 +182,219 @@ Options you see: A: no clerk desk (null), the nameplate rule covers the effect (
 
 Decision (opus-agent): A — `clerk_desk` is null for the FORMER 04 / H. VANCE row. §8.9 has no clerk at Desk 12, and the register lists Vance as former Desk 04, not Desk 12. Vance's only effects are those of §14.7 step 6: the Desk 12 nameplate goes blank and the `vance` aliases become bars. B would wrongly trigger clerk effects for Desk 12, including removing the whole desk on Day 5 under step 7.
 Placeholder in code/config: matches. `data/day3.json` already has null; no change.
+
+## QUESTION-21
+Section: §11.1 and §11.3 (Rule A attack; fixture_off, fixture_on, door_unlock)
+Context: fixture_off and fixture_on (peak −28 dBFS) reach 90% of peak at 134.7 ms, and door_unlock (peak −24 dBFS) at 140.7 ms. The spec gives a 150 ms linear ramp, so the checker's 90% measure falls just under 150 ms. `tests/unit/test_audio.gd` fails with Rule A errors.
+Question: How should these three be handled?
+Options you see: A: keep the spec ramp and exempt these three from the 90% attack measure (state the exemption) / B: shorten the ramp so the 90% point is at 150 ms or later / C: something else
+
+Decision (opus-agent): A — keep the 150 ms ramps exactly as §11.3 gives them, and exempt these three files from the checker's attack measure. §11.3 itself labels these recipes "attack 150 ms (Rule A)", so the spec defines their attack as the 150 ms ramp. The checker's 90%-of-1-ms-RMS proxy is our own convention. B would lengthen spec-given numbers (shortening the ramp would make things worse).
+Placeholder in code/config: does not match. Add `fixture_off`, `fixture_on` and `door_unlock` to `EXEMPTIONS` in `scripts/audio/loudness_checker.gd`, each with the reason "spec 11.3 recipe: attack 150 ms (Rule A); 90% proxy measure differs". The peak limit (≤ −24 dBFS) must still be checked for them; exempt only the attack test.
+
+## QUESTION-22
+Section: §11.1 and §11.2 (vent_shepard)
+Context: vent_shepard is a stationary loop with peak −26.11 dBFS, above the −30 dBFS limit the check applies, and its measured onset is 8 ms. A loop that never starts has no startle onset.
+Question: How should the vent_shepard loop be treated under Rule A?
+Options you see: A: exempt the stationary loop from the onset measure and keep its level, which the spec should state / B: regenerate at a lower peak / C: something else
+
+Decision (opus-agent): C — keep the file and its −32 dBFS RMS level (§11.2). Its peak of −26.11 dBFS is within Rule A's −24 dBFS limit. Meet the attack rule at playback: whenever an ambient bed starts, ramp its volume up linearly over ≥ 150 ms (use the 2.0 s of the §13.1 fade-in, since beds start during the day transition). The checker then records the bed's attack as that ramp. This makes the bed truly compliant without an exemption or a spec change. B would break the spec level.
+Placeholder in code/config: does not match. In `scripts/autoload/audio_director.gd`, start every ambient bed (`room_tone`, `hum`, `vent_shepard`) with a volume ramp of at least 150 ms. In `scripts/audio/loudness_checker.gd`, report a bed's attack as the applied ramp length, not the file onset.
+
+## QUESTION-23
+Section: §8.2 (marker_stroke) with §11.3
+Context: While the player drags the marker, the sound is a seamless loop. The API only has one-shots, so the current build plays a one-shot per drag matched to the drag length (max 1.2 s).
+Question: How should marker_stroke be played?
+Options you see: A: keep the one-shot per drag / B: add a looped-while-dragging mode / C: something else
+
+Decision (opus-agent): B — start the seamless 400 ms loop on mouse press, and stop it on release or when 1.2 s have elapsed, whichever is first. §8.2 says it plays "while dragging" with its length "matched to drag duration", and §11.3 builds it as a seamless loop. A one-shot cannot know the drag length in advance.
+Placeholder in code/config: does not match. Add a looped play with a stop handle in `scripts/audio/sfx_pool.gd` (and expose it through `scripts/autoload/audio_director.gd`). Make the marker interaction call start on press and stop on release or at 1.2 s.
+
+## QUESTION-24
+Section: §11.1 (player-caused classification)
+Context: The current build classes door_rattle, door_open, lamp_click, drawers and footsteps as player-caused, so Rule B (max −10 dBFS) applies to them and they play at full gain.
+Question: Which sounds are player-caused?
+Options you see: A: keep them player-caused / B: class some as ambient / C: something else
+
+Decision (opus-agent): A, applied per playback rather than per file. These sounds are player-caused when a player input triggers them (§11.1 definition), and they play at their file levels. The same files played by a script with no input in the previous 3.5 s are not player-caused, and Rule A applies to them. Examples: the Ending A `lamp_click` (§15.1 step 5), the ending fixture sounds, and `door_unlock` at refusal.
+Placeholder in code/config: matches if the `player_caused` flag passed to `LoudnessChecker.record()` comes from the call site, not from the file name. If it is a per-file table, change the scripted call sites (ending and refusal sequences) to pass `player_caused = false`.
+
+## QUESTION-25
+Section: §13.1 with §16.2 (new game transition)
+Context: The brief keeps a 1.0 s hold and fade at new game, but the spec's step list says "from step 3".
+Question: Does a new game include the fade and the 1.0 s hold?
+Options you see: A: skip the fade and hold at new game, per the spec's step 3 wording / B: keep the hold as the brief said / C: something else
+
+Decision (opus-agent): A — at new game, start at §13.1 step 3 (type MONDAY). §16.2 says "§13.1 from step 3", and step 1 says the fade is skipped at new game; the content note and title already end on black.
+Placeholder in code/config: matches. `scripts/ui/black_screen.gd` already skips the fade and first hold at new game. Make sure the new-game caller in `scripts/ui/title_screen.gd` uses that path.
+
+## QUESTION-26
+Section: §16.2 and §16.3 (menu presentation numbers)
+Context: Current choices: Special Elite 22 px, text #1C1B19; title sheet 60% of height, folder sheet 70%, settings sheet 80%, all at 0.75 aspect; folder backdrop over 50% black.
+Question: Are these presentation numbers acceptable?
+Options you see: A: accept / B: change the numbers / C: something else
+
+Decision (opus-agent): C — accept 22 px Special Elite in `#1C1B19` (the document text size and ink from §6.5 and §5.2) and the 50% black backdrop (the read-view dim, §6.3). Change two invented numbers to spec ones. (1) Every paper sheet uses the A4 ratio of §6.5 (768:1088 ≈ 0.706), not 0.75. (2) The settings page has no size of its own: it replaces the content of the sheet it was opened from (the 60% title sheet, or the paper inside the folder). The 70% figure is the manila folder's height (§16.2), and its paper fits inside it.
+Placeholder in code/config: does not match. In `scripts/ui/paper_menu.gd`, `scripts/ui/menu_folder.gd`, `scripts/ui/title_screen.gd` and `scripts/ui/settings_page.gd`, set the sheet aspect to 768/1088. Draw settings on the existing sheet (remove the 80% sheet), and make the 70% apply to the folder, with its paper inside.
+
+## QUESTION-27
+Section: §16.2 and §16.3 (menu behaviour defaults)
+Context: The worker chose: (a) the highlight on YES/NO prompts defaults to YES, the first option; (b) YES on the erase prompt deletes the save at once; (c) Up/Down clamp at the ends, no wrap; (d) QUIT quits without a prompt; (e) Esc in the folder closes it even when on the settings page; (f) Enter on a settings row and Esc on the settings page do nothing.
+Question: Are these defaults acceptable?
+Options you see: A: accept all as listed / B: change any named item / C: something else
+
+Decision (opus-agent): B, changing two items. (a) Change: every YES/NO prompt opens with NO highlighted. All of them guard destructive actions (erase the week, lose the day's progress), so a reflexive Enter must not destroy anything. (f) Change in part: Enter or a click on `BACK` must return, because §16.2 says "click or Enter activates", the same as every option. Enter on a value row does nothing, and Esc on the settings page opened from the title does nothing. Accept (b): YES starts the new game, which overwrites the save at Monday's autosave; deleting it immediately is equivalent. Accept (c), (d) (the spec gives no title QUIT prompt) and (e) (§16.2: "Esc ... closes the folder").
+Placeholder in code/config: does not match for (a) and (f). Set the default highlight to NO in the YES/NO prompt code (`scripts/ui/paper_menu.gd` or wherever the prompts are built: `scripts/ui/title_screen.gd`, `scripts/ui/menu_folder.gd`). Make Enter/click on `BACK` activate in `scripts/ui/settings_page.gd`.
+
+## QUESTION-28
+Section: §16.2 (selection prefix)
+Context: The "> " marker is about 5 px wider than two spaces in Special Elite, so option text shifts slightly between rows.
+Question: How should the prefix be laid out?
+Options you see: A: keep the literal prefixes / B: use a fixed-width marker that does not shift text / C: something else
+
+Decision (opus-agent): B — draw the marker `> ` (or nothing) in a fixed-width column as wide as `> `, and start every option's text at the same x. §16.2 states the purpose outright: "so text does not shift". Special Elite is not monospaced, so literal spaces cannot achieve that.
+Placeholder in code/config: does not match. Change `scripts/ui/paper_menu.gd`, and any other place that builds option rows, to draw the marker separately from the option text at a fixed text x.
+
+## QUESTION-29
+Section: §11.1 and §11.4 (key_clack at −30 dBFS on black screens)
+Context: key_clack is specified at −30 dBFS, but the worker applied −30 dB as extra gain on a file that already has its own peak level.
+Question: Is −30 dBFS the played level or an extra gain?
+Options you see: A: the −30 dBFS is the played level, so the file's level is set so that played output is −30 dBFS / B: keep the extra gain as written / C: something else
+
+Decision (opus-agent): A — "at −30 dBFS" is the absolute played peak. The spec writes extra gain as "dB additional gain" (the §11.1 ghost gain: −10 dBFS file − 20 dB = −30 dBFS) and played levels as "dBFS". So the code must apply gain = target dBFS − file peak dBFS. For key_clack (file −10 dBFS) that is −20 dB, not −30 dB. The same rule applies to every "at X dBFS" playback in the spec (clerk key_clack −34, clerk carriage_return −32, departing tube_send −30, supervisor-door key_clack −30, credits key_clack −30). Do not change the files.
+Placeholder in code/config: does not match. In `scripts/ui/key_clack.gd`, change `VOLUME_DB` from −30.0 to −20.0, or better, compute it as −30 − (−10). Check the other "at X dBFS" call sites in `scripts/autoload/audio_director.gd` and the clerk code for the same mistake.
+
+## QUESTION-30
+Section: §6.5 (handwritten paragraph spacing)
+Context: The spacing between handwritten paragraphs is not specified. Current choice: one blank 34 px row between paragraphs.
+Question: What spacing should separate handwritten paragraphs?
+Options you see: A: accept / B: other value / C: something else
+
+Decision (opus-agent): A — one blank line at the handwritten line height (34 px). That matches the blank line between paragraphs in the spec's quote blocks (§14.4: render "wrapping naturally") and adds no new number.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-31
+Section: §8.1 (stamp text "RETURNED — UNPROCESSED")
+Context: "RETURNED — UNPROCESSED" at 24 px measures 322 px, wider than the 260 px stamp box, though the spec says 24 px "to fit". Current build keeps 24 px and the text overflows the box.
+Question: How should this stamp's text fit?
+Options you see: A: keep 24 px and let it overflow / B: reduce the size until it fits the box / C: something else
+
+Decision (opus-agent): C — keep 24 px and the 260 × 70 box, and set the text on two centred lines: `RETURNED —` / `UNPROCESSED`. Both lines fit (about 160 px wide, 2 × ~28 px inside the 62 px interior). The spec contradicts itself (24 px does not fit on one line), and this reading keeps both of its stated facts, the size and "to fit". A breaks the box; B changes the given size.
+Placeholder in code/config: does not match. In the stamp impression drawing in `scripts/doc/doc_renderer.gd`, split this word after the dash into two centred lines at 24 px. Update the related check in `tests/unit/test_doc_render.gd`.
+
+## QUESTION-32
+Section: §8.4 (NO SUCH ADDRESSEE impression)
+Context: At 30 px the text is about 300 px wide, wider than the 260 px box. Current build draws it as red text with a knock-out and no box.
+Question: How should the NO SUCH ADDRESSEE impression be drawn?
+Options you see: A: accept that drawing / B: reduce size to fit the box / C: something else
+
+Decision (opus-agent): C — keep 30 px text and draw it "same style as stamps" (§8.4): the 4 px border rectangle, 20% knock-out, random rotation −6° to +6° and opacity 0.75–0.95. The box is 70 px tall and as wide as the text plus the stamp's horizontal margin. §8.4 fixes only the text size, not the box width, and the 260 px width belongs to the stamp words of §8.1. Dropping the box (A) breaks "same style", and B changes the given 30 px.
+Placeholder in code/config: does not match. In `scripts/doc/doc_renderer.gd`, draw the bordered box with a text-fitted width, plus rotation and opacity like a stamp. Adjust `tests/unit/test_doc_render.gd`.
+
+## QUESTION-33
+Section: §6.5 and §16.3 (text assist █ runs)
+Context: Special Elite has no U+2588 block glyph, so block runs are drawn as solid rectangles of the same advance width.
+Question: How should block runs be drawn?
+Options you see: A: accept / B: use a different font or glyph / C: something else
+
+Decision (opus-agent): A — draw solid rectangles in the ink colour, one character advance wide per █, filling the line's glyph height. §5.6 forbids another font, and the result looks exactly as a █ run would.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-34
+Section: §14.13 (notebook pages)
+Context: Later blank notebook pages are not shown; the notebook shows pages 1 to the current day.
+Question: Should the later blank pages be shown?
+Options you see: A: accept / B: show all pages / C: something else
+
+Decision (opus-agent): B — the notebook has five pages (§14.5 to §14.11 define pages 1–5). Pages 1..`day` show their text, pages after `day` exist and render blank, and the notebook opens on page `day`. §14.13 says "later pages are blank", which describes pages that exist and are empty, not pages that are absent. Paging onto them plays `page_turn` as usual.
+Placeholder in code/config: does not match. In `scripts/doc/notebook_view.gd`, include all five pages, with pages above `day` blank, and keep opening on page `day`.
+
+## QUESTION-35
+Section: §6.3 (read view cursor)
+Context: The read view forces the mouse cursor visible on open and restores the previous mouse mode on close.
+Question: Is that the right cursor behaviour?
+Options you see: A: accept / B: keep the cursor hidden as the mouse-look mode uses it / C: something else
+
+Decision (opus-agent): A — §6.3 says outright for read view: "Mouse cursor visible." Restoring the previous mode (captured in free view) on close is the natural counterpart.
+Placeholder in code/config: matches. No change in `scripts/doc/read_view.gd`.
+
+## QUESTION-36
+Section: §8.5 and §6.5 (carbon 0.6 px blur)
+Context: The carbon 0.6 px blur is approximated as two draws at half alpha, times 0.85, 0.6 px apart.
+Question: Is that approximation acceptable?
+Options you see: A: accept / B: use a different approximation / C: something else
+
+Decision (opus-agent): A, with one correction. The two-draw offset is an acceptable stand-in for a 0.6 px blur at this resolution. However, two overlapping draws at 0.425 alpha composite to about 0.67 in the glyph core, not the ×0.85 §6.5 requires. Each draw's alpha must be a = 1 − √(1 − 0.85·glyph_opacity), so that the overlapped core composites to 0.85 × the glyph's opacity.
+Placeholder in code/config: does not match, unless the renderer already compensates. Fix the per-draw alpha in the carbon drawing path of `scripts/doc/doc_renderer.gd`, and add a check in `tests/unit/test_doc_render.gd`.
+
+## QUESTION-37
+Section: §9.3 D1-U1 (Desk 12 chair rotation)
+Context: "Rotate 30° toward Desk 4" has no sign, and Desk 4 is due south of the chair. Current: yaw +30°.
+Question: Which sign should the rotation use?
+Options you see: A: +30° (turns toward the south) / B: −30° / C: something else
+
+Decision (opus-agent): A — keep +30° yaw. Desk 4 (x 5.25) is due south of Desk 12 (x 5.25), so either sign turns the chair equally toward Desk 4, and the spec's wording is satisfied either way. Keeping the current value avoids churn. The rotation must be deterministic (not random), so it looks the same in every run.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-38
+Section: §5.4 (clerk typing animation)
+Context: "Right hand up" has no amount. Current: +0.02 m, mirroring the "down" amount.
+Question: How far does a hand move up?
+Options you see: A: accept / B: another value / C: something else
+
+Decision (opus-agent): A — +0.02 m, the same magnitude as the specified "down" movement within the same pose. This reuses the only number given and keeps the poses symmetric.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-39
+Section: §9.3 D4-U2 (silhouette placement) with §6.1 (doors)
+Context: Placed 0.05 m behind the glass, the silhouette lands inside the north wall box (z −6.2 to −6.0) and is hidden. Current: the literal offset, so it is hidden.
+Question: Where should the silhouette go?
+Options you see: A: keep the literal offset and accept that it is hidden / B: place it just in front of the wall face / C: something else
+
+Decision (opus-agent): C — the real defect is that the walls have no door openings. §6.1 puts a room behind the supervisor door. §15.2 needs a walk-through exit doorway: the door swings outward into a box beyond, and the camera crosses z = 6.1 "inside the doorway". Cut a 1.0 × 2.1 opening through the north wall at x = 0 and through the south wall at x = −6, keeping the door panels where they are. Then place the silhouette exactly 0.05 m behind the glass, inside the opening, seen through the frosted glass. A makes D4-U2 invisible, and B puts the figure on the room side of the glass, which contradicts "behind the glass".
+Placeholder in code/config: does not match. In `scripts/world/hall_c.gd` `_wall()`, build the north and south walls (visual boxes, dado rail and collision) in segments around the two door openings. In `scripts/world/door_model.gd`, fill the opening behind the exit door with the black box of §15.2. Keep the silhouette offset in `scripts/autoload/unseen_changes.gd`, and check that the collision still blocks the player at both doors while they are closed.
+
+## QUESTION-40
+Section: §9.3 D4-U2 (silhouette shape)
+Context: A 0.95 m figure leaves a 0.13 m gap between head and body. Current: the literal dimensions.
+Question: Should the head and body touch?
+Options you see: A: accept / B: change the dimensions / C: something else
+
+Decision (opus-agent): C — keep every given dimension: circle r = 0.11, rounded rectangle 0.45 × 0.6, quad bounds 0.45 × 0.95. Put the circle directly on top of the rectangle ("atop"), so the outline is 0.82 m tall, with its bottom on the bottom of the 0.95 m bounds. The spec contradicts itself (the parts do not add up to 0.95). "Head-and-shoulders outline" and "atop" both describe touching shapes, and a floating head would be an invented, more startling image.
+Placeholder in code/config: does not match. Change the silhouette mesh generation in `scripts/autoload/unseen_changes.gd`, or the helper it uses, so the circle's lowest point meets the rectangle's top edge.
+
+## QUESTION-41
+Section: §10.3 (ghost-sheet distance trigger)
+Context: The spec text reads "> 4.0 m", but the brief's test says "4.0 m". Current: strictly greater than 4.0 m, and the test uses 4.5 m.
+Question: Is the comparison strict?
+Options you see: A: strictly greater than 4.0 m / B: greater than or equal to 4.0 m / C: something else
+
+Decision (opus-agent): A — strictly greater than 4.0 m, as §10.3 writes it. The spec governs the brief.
+Placeholder in code/config: matches. No change. The 4.5 m test value is fine.
+
+## QUESTION-42
+Section: §10.3 (X-outs over player typing on the ghost sheet)
+Context: Current: the X-outs cover only the cells not yet overstruck.
+Question: Which cells get an X?
+Options you see: A: accept / B: cover every cell in the window / C: something else
+
+Decision (opus-agent): C — on each trigger, ghost-type one `X`, in reading order, over every cell the player typed on the ghost sheet since the previous X-out pass on that sheet. This includes cells the player overstruck themselves, and cells already X-ed earlier that the player has typed on again. Cells the player has not typed on since the last pass get no new X. §10.3 says "each cell the player typed", without exceptions for overstrike state, and a cell already X-ed and untouched needs no second X. The 3-glyph cap (§6.5) still applies.
+Placeholder in code/config: matches only if "not yet overstruck" means "not yet X-ed since the player last typed there". If it skips cells because the player overstruck them, change the X-out cell list in the ghost-typing code (`scripts/autoload/cadence.gd` or `scripts/logic/typewriter_model.gd`) to track the cells the player typed since the last pass.
+
+## QUESTION-43
+Section: §9.3 D3-U2 (unison typing as an unseen change)
+Context: Current: the group's unseen time is the minimum over the clerks, and the distance is to the nearest clerk.
+Question: How are the unseen and distance rules applied to a target of several clerks?
+Options you see: A: accept / B: another rule / C: something else
+
+Decision (opus-agent): A — the group counts as unseen only when every typing clerk has been unseen for ≥ 1.5 s (minimum over the clerks), and the distance rule is met only when the nearest clerk is ≥ 2.0 m away. This is the only reading under which no clerk changes in view (§2.1 pillar 3, §8.9 "never ... while in view").
+Placeholder in code/config: matches. No change.
+
+## QUESTION-44
+Section: §9.3 D3-U1 (Desk 12 figure hide rule)
+Context: "Within 3.0 m of Desk 12" is measured to the centre of the Desk 12 bounds.
+Question: How is the distance to Desk 12 measured?
+Options you see: A: accept / B: measure to the nearest point of the Desk 12 bounds / C: something else
+
+Decision (opus-agent): A — measure from the player (camera) to the centre of Desk 12, the same point-to-point convention used for the other distance rules in the spec. The other rules (§6.2 chair, §9.2 target distance, §10.3 typewriter, §15.2 figure) all measure to a single point, so this keeps them consistent and avoids inventing a bounds test.
+Placeholder in code/config: matches. No change.
