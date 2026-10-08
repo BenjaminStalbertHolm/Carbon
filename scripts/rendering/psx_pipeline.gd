@@ -99,3 +99,25 @@ func _layout() -> void:
 	var size := (internal * factor).floor()
 	_present.size = size
 	_present.position = ((window - size) * 0.5).floor()
+
+
+## A SubViewport does not get window input by itself, so the 3D world (the player's keys and mouse
+## look, in particular) would never see it. Keys and mouse events the window did not consume are
+## pushed into the viewport here. Mouse positions are mapped from the window to the internal
+## resolution; relative motion stays in window pixels, as the look code expects.
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey or event is InputEventMouse):
+		return
+	var pushed := event.duplicate() as InputEvent
+	if pushed is InputEventMouse:
+		var mouse := pushed as InputEventMouse
+		mouse.position = _to_internal(mouse.position)
+		mouse.global_position = mouse.position
+	_viewport.push_input(pushed)
+
+
+func _to_internal(window_pos: Vector2) -> Vector2:
+	var rect := _present.get_global_rect()
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return window_pos
+	return (window_pos - rect.position) / rect.size * Vector2(_resolution)
