@@ -1,3 +1,8 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://scripts/doc/read_view.gd" id="1"]
+
 [node name="ReadView" type="CanvasLayer"]
+layer = 10
+visible = false
+script = ExtResource("1")
