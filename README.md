@@ -8,7 +8,8 @@ decisions are in `QUESTIONS.md`.
 
 - M0 (project setup, folder structure, autoload stubs, fonts, asset generators): done. See "Verified (M0)" below.
 - M1 (rendering pipeline: 320x240 SubViewport, PS1 spatial and post shaders, fog, resolution switching): done. See "Verified (M1)" below.
-- M2 onward: not started.
+- M2 (Hall C geometry): in progress.
+- M3 to M11: logic for the day flow, the typewriter, redaction, corrections, endings and the text is done and tested headless. Presentation (player, typewriter view, read view, audio, front end, endings sequences, debug console) is being built.
 
 ## Requirements
 
@@ -103,6 +104,24 @@ are in `QUESTIONS.md`.
 - Fog is applied after lighting: the lit colour is scaled by (1 − fog) and the fog colour is added as emission.
 - Affine texture mapping uses UV×w and w varyings, divided per pixel (spec 4.2). The GPU's perspective-correct interpolation cancels out, which leaves the screen-linear mapping the PS1 used.
 - The snap grid is the project-level shader global `psx_snap_grid`, declared in `project.godot`. Without that declaration, the export-time shader check fails.
+
+## Tests
+
+Run from the repo root. Each exits 0 when every check passes.
+
+```
+godot --headless --path . --script res://tests/run_tests.gd                    # M0 project and asset checks
+godot --headless --path . --script res://tests/unit/test_logic.gd              # text, documents, redaction, corrections, memos, clock
+godot --headless --path . --script res://tests/unit/test_typewriter.gd         # typewriter rules and ghost queue
+godot --headless --path . --script res://tests/unit/test_playthrough_day1.gd   # Day 1 and the Day 2 morning, through the real content
+godot --headless --path . --script res://tests/unit/test_playthrough_compliant.gd  # acceptance test 1: a compliant five-day run
+godot --headless --path . --script res://tests/unit/test_acceptance_logic.gd   # acceptance tests 4, 5, 6 and 10 (logic level)
+python3 tools/check_text.py                                                    # acceptance test 13: text fidelity
+```
+
+Visual checks run under a virtual display: `xvfb-run -a -s "-screen 0 1280x1024x24" godot ...`.
+
+Acceptance status, by spec section 20, is kept in tests/acceptance/ACCEPTANCE.md once it exists.
 
 ## Verified (M0)
 
