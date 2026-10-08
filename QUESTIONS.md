@@ -628,3 +628,54 @@ Decision (opus-agent): C — set each gain from Rule A by its attack, and only w
 - The scripted Ending A `lamp_click` uses −10 dB (QUESTION-58).
 The Ending C step 1 `paper_in` (and any eject sound there) is a direct consequence of the player's click within 3.5 s, so it is player-caused and plays at 0 dB.
 Placeholder in code/config: does not match for `paper_out`. Change its scripted gain from −6 dB to −10 dB in `scripts/endings/ending_a.gd` and `scripts/endings/ending_c.gd`. Make sure the Ending C step-1 sounds pass `player_caused = true` at 0 dB.
+
+## QUESTION-69
+Section: §21 (`audio_check`) with §11.1 (debug loudness check)
+Context: The loudness checker is on by default in debug builds and prints every playback.
+Question: Should the checker be on by default, and what should it print?
+Options you see: A: on by default in debug builds, as built / B: off by default, switched on by audio_check / C: something else
+
+Decision (opus-agent): C — keep it on by default in debug builds, but log only violations. §11.1 asks for "a debug check ... that logs any playback violating Rules A/B", and M9 requires "zero violations over a full playthrough", so it must run without anyone remembering to switch it on. A log line for every playback buries those violations. `audio_check` toggles it. Exempt playbacks may stay as a single summary count, not one line each.
+Placeholder in code/config: does not match. In `scripts/audio/loudness_checker.gd`, remove the per-playback `AUDIO CHECK ok:` print (line ~89) and the per-playback `exempt` print (keep the counters). Keep `AUDIO VIOLATION:` lines.
+
+## QUESTION-70
+Section: §21 (`day N` defaults)
+Context: The defaults set the compliant outcome with blank P-1 answers, and S-4 approves A.
+Question: What default state should `day N` set?
+Options you see: A: as built, with the defaults listed in tests/acceptance/ACCEPTANCE.md / B: another default set, stated / C: something else
+
+Decision (opus-agent): A — as built. §21 asks for "plausible default state (all prior orders processed, carbons filed, default tokens)". Blank P-1 gives the default tokens (`CLERK 0412`, `M. ALDER`, `QUIET`, `p1_q4` OTHER per §14.1). Processed orders with PROCESSED stamps and filed carbons follow the spec's wording. S-4 = A (the player's own number) is the plausible single approval. Listing these defaults in the acceptance record is correct.
+Placeholder in code/config: matches. No change, apart from the record's path (see QUESTION-73).
+
+## QUESTION-71
+Section: §21 (`skip` on a transcription task)
+Context: Current build: the source text is copied in, the em dash kept, and the carbon is left on the carbon spot, not filed.
+Question: What should `skip` do on a transcription task?
+Options you see: A: as built / B: the carbon is filed too / C: something else
+
+Decision (opus-agent): C — `skip` sends the output "as-is" (§21) and adds no typing. If a qualifying sheet + carbon set exists, remove it as §7.7 would: the carbon goes to the carbon spot and is not filed (filing is a player choice, §8.5). Send the original with its current contents. If none exists, take one sheet + carbon set from the tray and send it blank. Copying the source text in is not "as-is". Accuracy-dependent paths should use `set accuracy ...`, or the playthrough tests' own typing helper.
+Placeholder in code/config: does not match. In `scripts/debug/debug_commands.gd` (the skip handler and `_source_text`, lines ~151–197), stop copying the source text, and send the existing or blank sheet as described. Update `tests/acceptance/test_debug_console.gd` to match.
+
+## QUESTION-72
+Section: §21 (console and pause)
+Context: The game tree is paused while the console is open, so the player and the clock do not move while typing a command.
+Question: Should the console pause the game?
+Options you see: A: pause, as built / B: do not pause / C: something else
+
+Decision (opus-agent): A — pause, as built. The console is debug-only and invisible to players. Pausing (the same behaviour as the §16.2 menu folder) stops command keystrokes from reaching the typewriter or cadence and stops ghost or unseen triggers from firing mid-command.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-73
+Section: §20 tests 11 and 12 (automation)
+Context: The automated parts are the loudness checker on individual sounds and the save round trip. The full-playthrough loudness run and the live continue on a real window are manual.
+Question: Should the full-playthrough checks be automated?
+Options you see: A: keep them manual, as built / B: add a scripted full-playthrough checker run as an automated test / C: something else
+
+Decision (opus-agent): B, and also script test 12. No human is available to run the manual playthroughs, so a check left manual will never be run.
+- Test 11: add a scripted full playthrough, driving the compliant run (as in `tests/unit/test_playthrough_compliant.gd`) through Days 1–5 and Ending A with the loudness checker on, and assert zero violations.
+- Test 12: add a scripted quit mid-Day 3, then continue through `SaveSystem` and `DayDirector`, and assert that Day 3 restarts from its start with Day 2 results and cadence intact.
+- The purely visual parts of test 11 (nothing appears in the frustum, no clerk moves in view) stay as manual or screenshot checks, marked pending in the record.
+Also, §20 says to record results in `/tests/ACCEPTANCE.md`, not `tests/acceptance/ACCEPTANCE.md`.
+Placeholder in code/config: does not match.
+- Add `tests/acceptance/test_full_loudness.gd` and `tests/acceptance/test_continue_day3.gd`, or extend `tests/acceptance/acceptance_runner.gd`.
+- Move `tests/acceptance/ACCEPTANCE.md` to `tests/ACCEPTANCE.md` and update references to it (`acceptance_runner.gd`, any scripts).
