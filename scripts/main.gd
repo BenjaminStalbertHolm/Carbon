@@ -282,6 +282,7 @@ func _on_new_game() -> void:
 		endings.reset()
 	_reset_world()
 	_dd().start_new_game()
+	_reset_built_world()
 	_apply_day_world()
 	_apply_day_start_changes()
 	player.reset_seated()
@@ -410,6 +411,15 @@ func _apply_day_start_changes() -> void:
 	var un = _autoload("UnseenChanges")
 	if gs != null and un != null:
 		un.apply_day_start(int(gs.day))
+
+
+## Spec 16.2: a new game starts from the built hall. Only _on_new_game calls this; a continue keeps the saved state.
+func _reset_built_world() -> void:
+	var un = _autoload("UnseenChanges")
+	if un != null:
+		un.reset()
+	if clerk_world != null:
+		clerk_world.reset()
 
 
 ## A new game or a continue after an ending: the clerks type and the clock runs again.

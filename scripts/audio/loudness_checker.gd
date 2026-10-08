@@ -1,7 +1,8 @@
 extends RefCounted
 ## Debug-only loudness checker for AudioDirector (spec 11.1, Rules A and B).
-## Every playback is logged with the file's normalised peak, the playback gain and the verdict.
-## A playback that breaks Rule A or B prints "AUDIO VIOLATION" and increments `violations`.
+## Every playback is judged and counted (playbacks, violations, exempt_playbacks). Only a playback
+## that breaks Rule A or B and is not exempt prints a line ("AUDIO VIOLATION") and increments `violations`.
+## Passing and exempt playbacks print nothing (QUESTION-69), so the violation lines are not buried.
 ## Attenuation over distance is not modelled: the check is the file peak plus the playback gain.
 ## is_active() is false in release builds, so nothing is analysed or logged there.
 
@@ -86,13 +87,12 @@ func record(sound: String, source: String, stream: AudioStreamWAV, gain_db: floa
 	var detail := "%s [%s] %s file_peak=%.2f dBFS gain=%.2f dB peak=%.2f dBFS attack=%.1f ms" % [
 		sound, source, kind, file_peak, gain_db, at_listener, attack]
 	if problem == "":
-		print("AUDIO CHECK ok: " + detail)
-	elif is_exempt(sound, problem):
+		return
+	if is_exempt(sound, problem):
 		exempt_playbacks += 1
-		print("AUDIO CHECK exempt: %s (%s)" % [detail, EXEMPTIONS[sound]["reason"]])
-	else:
-		violations += 1
-		print("AUDIO VIOLATION: %s -- %s" % [detail, problem])
+		return
+	violations += 1
+	print("AUDIO VIOLATION: %s -- %s" % [detail, problem])
 
 
 func reset() -> void:

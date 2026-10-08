@@ -121,7 +121,7 @@ python3 tools/check_text.py                                                    #
 
 Visual checks run under a virtual display: `xvfb-run -a -s "-screen 0 1280x1024x24" godot ...`.
 
-Acceptance status, by spec section 20, is kept in tests/acceptance/ACCEPTANCE.md once it exists.
+Acceptance status, by spec section 20, is kept in tests/ACCEPTANCE.md. The runner is tests/acceptance/acceptance_runner.gd.
 
 ## Verified (M0)
 

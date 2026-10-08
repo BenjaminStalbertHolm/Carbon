@@ -16,6 +16,9 @@ const GEOMETRY_PATH := "res://scripts/world/geometry.gd"
 const HALL_PATH := "res://scripts/world/hall_c.gd"
 const CLERK_PATH := "res://scripts/world/clerk_figure.gd"
 const NAMEPLATE_PATH := "res://scripts/world/nameplate.gd"
+const Content := preload("res://scripts/logic/content.gd")
+## The flags this registry writes (GameState.flags). A new game clears them with the rest of the state.
+const OWNED_FLAGS := ["unseen", "desk12_chair_out", "clock_override", "unison_typing", "tray_line"]
 const DESK12_CENTRE := Vector3(5.25, 0.0, -2.5)
 const NAMEPLATE_POS := Vector3(0.0, 0.77, -0.36)
 
@@ -32,6 +35,7 @@ const GHOST_IDS := ["D3-U3", "D4-U3"]
 
 var _hall: Node3D = null
 var _changes: Array = []
+var _chair12_built := {}  # Chair12's position and rotation as the hall was built (set by bind_hall)
 
 
 func _ready() -> void:
@@ -55,12 +59,70 @@ func changes() -> Array:
 
 ## The hall root built by hall_c.gd. Named nodes are looked up under it, and the
 ## targets and clerks are tracked by Gaze.
+## Called once, right after hall_c.gd builds the hall, before any change applies (the built
+## Chair12 transform is read here).
 func bind_hall(root: Node3D) -> void:
 	_hall = root
+	var chair = _node("Chair12")
+	if chair != null:
+		_chair12_built = {"position": chair.position, "rotation": chair.rotation}
 	for n in ["Desk04", "Desk12", "Chair12", "Clock", "SupervisorDoor", "Typewriter04"]:
 		_track(_node(n))
 	for c in _clerk_nodes():
 		_track(c)
+
+
+## A new game (spec 16.2): clears every applied and pending change, its flags and its visuals, and returns
+## the hall's unseen changes to the built state (Chair12 pushed under the desk, no Clerk12 apparition, no
+## door silhouette). Call after GameState.new_game() and before the day's world is applied. The nameplates
+## go back to the names the hall was built with (spec 8.9): GameState.new_game leaves desks 1-11 blank.
+func reset() -> void:
+	var gs = _gs()
+	if gs != null:
+		for key in OWNED_FLAGS:
+			gs.flags.erase(key)
+		_reset_nameplates(gs)
+	_restore_chair12()
+	_remove_apparition()
+	_remove_silhouette()
+
+
+func _reset_nameplates(gs) -> void:
+	var names: Dictionary = Content.strings()["nameplates"]
+	for n in range(1, 13):
+		var text := String(names.get(str(n), ""))
+		gs.nameplate[str(n)] = text
+		set_nameplate_visual(n, text)
+
+
+func _restore_chair12() -> void:
+	var chair = _node("Chair12")
+	if chair == null or _chair12_built.is_empty():
+		return
+	chair.position = _chair12_built["position"]
+	chair.rotation = _chair12_built["rotation"]
+
+
+func _remove_apparition() -> void:
+	var fig = _node("Clerk12")
+	if fig == null:
+		return
+	var gaze = _gaze()
+	if gaze != null:
+		gaze.untrack(fig)
+	if fig.get_parent() != null:
+		fig.get_parent().remove_child(fig)
+	fig.queue_free()
+
+
+func _remove_silhouette() -> void:
+	var door = _node("SupervisorDoor")
+	if door == null:
+		return
+	var mi = door.get_node_or_null("DoorSilhouette")
+	if mi != null:
+		door.remove_child(mi)
+		mi.queue_free()
 
 
 ## Called by the lead during the day-transition black screen (spec 9.2): applies the
@@ -319,10 +381,7 @@ func _op_d3_u1(_c: Dictionary) -> bool:
 
 
 func _rev_d3_u1(_c: Dictionary) -> bool:
-	var fig = _node("Clerk12")
-	if fig != null:
-		fig.get_parent().remove_child(fig)
-		fig.queue_free()
+	_remove_apparition()
 	return true
 
 
@@ -363,12 +422,7 @@ func _op_d4_u2(_c: Dictionary) -> bool:
 
 
 func _rev_d4_u2(_c: Dictionary) -> bool:
-	var door = _node("SupervisorDoor")
-	if door != null:
-		var mi = door.get_node_or_null("DoorSilhouette")
-		if mi != null:
-			door.remove_child(mi)
-			mi.queue_free()
+	_remove_silhouette()
 	return true
 
 

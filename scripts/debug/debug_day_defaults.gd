@@ -1,7 +1,7 @@
 extends RefCounted
 ## Debug "day N" defaults (spec 21). Starts a new game, then gives Days 1 to N-1 the state of a
 ## compliant run and resolves each day's overnight with DayDirector.run_overnight (spec 14.7), then
-## begins Day N. Defaults, all documented in tests/acceptance/ACCEPTANCE.md:
+## begins Day N. Defaults, all documented in tests/ACCEPTANCE.md:
 ##  - P-1 tokens: tokens_set true, every P-1 answer blank (CLERK 0412, M. ALDER, QUIET, OTHER).
 ##  - Transcriptions T-1 to T-4: accuracy 1.0. No transcription original or carbon is recreated.
 ##  - Batches S-1, S-2: each page holds its batch's Correct column. S-4 approves application A, as

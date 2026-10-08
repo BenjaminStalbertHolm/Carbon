@@ -7,8 +7,6 @@ extends RefCounted
 const DebugGuard := preload("res://scripts/debug/debug_guard.gd")
 const DebugDays := preload("res://scripts/debug/debug_day_defaults.gd")
 const Content := preload("res://scripts/logic/content.gd")
-const DocModel := preload("res://scripts/logic/doc_model.gd")
-const TextNorm := preload("res://scripts/logic/text_norm.gd")
 const EndingsLogic := preload("res://scripts/logic/endings.gd")
 const Geo := preload("res://scripts/world/geometry.gd")
 
@@ -147,8 +145,11 @@ static func _has_property(obj: Object, property: String) -> bool:
 
 # --- skip ------------------------------------------------------------------------------
 
-## Completes the active task with its output as-is. A transcription gets a blank sheet with the
-## source text copied in, and the sheet's carbon is left on the carbon spot (no filing).
+## Completes the active task with its output as-is (spec 21), and adds no typing. For a transcription the
+## output is the task's sheet + carbon set. A sheet of the task that is already out (in hand, on the
+## typewriter, on the copyholder or on the read stack) is sent with its current contents, after it is
+## removed as spec 7.7 removes it: its carbon goes to the carbon spot and is not filed. When no such sheet
+## is out, one sheet + carbon set is taken from the tray and sent blank.
 func _cmd_skip() -> PackedStringArray:
 	var gs = _autoload("GameState")
 	var dd = _autoload("DayDirector")
@@ -161,7 +162,7 @@ func _cmd_skip() -> PackedStringArray:
 	if spec.is_empty():
 		return PackedStringArray(["skip: task %s is not in day %d" % [tid, int(gs.day)]])
 	if spec.has("transcription"):
-		return _skip_transcription(gs, dd, tid, spec)
+		return _skip_transcription(gs, dd, tid)
 	var out_id := String(spec.get("output", ""))
 	if out_id == "" or not gs.docs.has(out_id):
 		return PackedStringArray(["skip: the output of %s is not in the world" % tid])
@@ -169,45 +170,36 @@ func _cmd_skip() -> PackedStringArray:
 	return PackedStringArray(["skip: sent %s (task %s)" % [out_id, tid]])
 
 
-func _skip_transcription(gs, dd, tid: String, spec: Dictionary) -> PackedStringArray:
-	if String(gs.loc.typewriter) != "":
-		return PackedStringArray(["skip: a sheet is in the typewriter; unload it first"])
-	var sid := String(dd.take_blank_sheet())
+func _skip_transcription(gs, dd, tid: String) -> PackedStringArray:
+	var sid := _task_sheet_out(gs, tid)
+	var origin := "the sheet out"
 	if sid == "":
-		return PackedStringArray(["skip: the blank paper tray is empty"])
-	var sheet: Dictionary = gs.docs[sid]
-	var source: Dictionary = spec.transcription
-	var text := _source_text(String(source.source_doc), bool(source.get("skip_first_line", false)))
-	var lines := DocModel.wrap_text(text, DocModel.COLS)
-	for li in range(lines.size()):
-		var line := String(lines[li])
-		for ci in range(line.length()):
-			DocModel.write_glyph(sheet.pages[0], li, ci, line.substr(ci, 1), gs.rng)
+		sid = String(dd.take_blank_sheet())
+		if sid == "":
+			return PackedStringArray(["skip: no sheet of %s is out, and the blank paper tray is empty" % tid])
+		origin = "a blank sheet from the tray"
 	dd.paper_removed(sid)
 	gs.place(sid, "hand")
 	dd.send_document(sid)
 	var acc := float(gs.accuracy.get(tid, 0.0))
-	return PackedStringArray(["skip: sent %s with the source of %s (accuracy %.3f)" % [sid, tid, acc]])
+	return PackedStringArray(["skip: sent %s (%s) for %s, accuracy %.3f" % [sid, origin, tid, acc]])
 
 
-## The source text as DayDirector scores it (spec 7.8): tokens substituted, then normalised.
-func _source_text(source_doc: String, skip_first: bool) -> String:
-	var parts := PackedStringArray()
-	var tt = _autoload("TextTokens")
-	for page in _doc_spec(source_doc).get("pages", []):
-		var raw: Array = page.get("lines", page.get("paragraphs", []))
-		var start := 1 if skip_first and page.has("lines") else 0
-		for i in range(start, raw.size()):
-			parts.append(tt.substitute(String(raw[i])))
-	return TextNorm.normalise(" ".join(parts))
-
-
-func _doc_spec(doc_id: String) -> Dictionary:
-	for n in range(1, 6):
-		var docs: Dictionary = Content.day(n).get("documents", {})
-		if docs.has(doc_id):
-			return docs[doc_id]
-	return {}
+## The original sheet of the task, if one is out of the tray: in hand, on the typewriter, on the copyholder
+## or on the read stack. Carbons are never returned here. Returns "" when none is out.
+func _task_sheet_out(gs, tid: String) -> String:
+	for where in ["typewriter", "hand", "copyholder", "read_stack"]:
+		var holder = gs.loc.get(where)
+		var ids: Array = []
+		if typeof(holder) == TYPE_ARRAY:
+			ids = holder
+		elif String(holder) != "":
+			ids = [holder]
+		for id in ids:
+			var doc: Dictionary = gs.docs.get(String(id), {})
+			if String(doc.get("kind", "")) == "sheet" and String(doc.get("task", "")) == tid and not bool(doc.get("carbon", false)):
+				return String(id)
+	return ""
 
 
 func _task_spec(day: int, task_id: String) -> Dictionary:

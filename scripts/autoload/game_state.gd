@@ -3,6 +3,8 @@ extends Node
 ## Autoload. Plain data plus helpers. Rules live in DayDirector and the logic
 ## modules. Serialises to a JSON-safe Dictionary for SaveSystem.
 
+const Content := preload("res://scripts/logic/content.gd")
+
 const SAVE_VERSION := 1
 const LOCATIONS := ["inbox", "read_stack", "carbon_spot", "drawer", "removed", "attached"]
 
@@ -107,11 +109,13 @@ func new_game(seed_value: int = -1) -> void:
 	clerk_present = {}
 	clerk_faces_player = {}
 	nameplate = {}
+	# Spec 8.9: the nameplates show the names exactly. The names live in data/strings.json (spec 3.4).
+	var plates: Dictionary = Content.strings().nameplates
 	for n in range(1, 13):
 		clerk_present[str(n)] = n != 4 and n != 12
 		clerk_faces_player[str(n)] = false
 		desk_removed[str(n)] = false
-		nameplate[str(n)] = ""
+		nameplate[str(n)] = String(plates.get(str(n), ""))
 	nameplate["4"] = "0412"
 	clock_time = "08:58"
 	clock_frozen = false

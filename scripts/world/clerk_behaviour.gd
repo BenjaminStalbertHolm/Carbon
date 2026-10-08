@@ -127,6 +127,48 @@ func _build_desk(n: int, atlas: Texture2D, gs) -> void:
 	fig.set_facing_player()
 
 
+## A new game (spec 16.2, 8.9): every typing desk, chair, typewriter, tube terminal, nameplate and seated clerk
+## is back in the hall. Whatever redaction removed is rebuilt with the models hall_c.gd uses, and the clerks
+## type again from the start. apply_day_state then sets every nameplate and clerk from GameState: refused
+## clerks face Desk 4, the rest sit facing north. Call after UnseenChanges.reset() (which restores the names)
+## and after GameState.new_game().
+func reset() -> void:
+	var gs = get_node_or_null("/root/GameState")
+	if _hall == null or gs == null:
+		return
+	var atlas: Texture2D = null
+	for n in range(1, 12):
+		if n == 4:
+			continue
+		if atlas == null and _hall.get_node_or_null("Typewriter%02d" % n) == null:
+			atlas = TextTex.keycap_atlas(_hall)
+		_restore_parts(n, atlas, gs)
+	_unison_on = false
+	_unison_frozen = false
+	_unison_resume = 0.0
+	_register()
+	_unison_stream = _new_stream()
+	apply_day_state(int(gs.day))
+
+
+## Puts back whatever of one desk is missing: the desk with its nameplate, the chair, the typewriter, the tube
+## terminal and the seated clerk. Parts still in the hall are left as they are.
+func _restore_parts(n: int, atlas: Texture2D, gs) -> void:
+	var centre := HallC.desk_centre(n)
+	if _hall.get_node_or_null("Desk%02d" % n) == null:
+		var desk := DeskModel.build(_hall, "Desk%02d" % n, centre)
+		Nameplate.build(desk, String(gs.nameplate.get(str(n), "")), HallC.NAMEPLATE_POS)
+	var chair = _hall.get_node_or_null("Chair%02d" % n)
+	if chair == null:
+		chair = ChairModel.build(_hall, "Chair%02d" % n, centre + Vector3(0, 0, HallC.CHAIR_OFFSET))
+	if _hall.get_node_or_null("Typewriter%02d" % n) == null:
+		TypewriterModel.build(_hall, "Typewriter%02d" % n, centre, atlas)
+	if _hall.get_node_or_null("Tube%02d" % n) == null:
+		TubeModel.build(_hall, "Tube%02d" % n, centre)
+	if _hall.get_node_or_null("Clerk%02d" % n) == null:
+		ClerkFigure.build(_hall, "Clerk%02d" % n, centre + Vector3(0, 0, HallC.CHAIR_OFFSET), chair)
+
+
 func _process(delta: float) -> void:
 	if _hall == null or _silenced:
 		return

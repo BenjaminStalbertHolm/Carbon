@@ -2,11 +2,14 @@ extends SceneTree
 ## Acceptance runner (spec 20, milestone M11). It finds every headless test under tests/ at run time,
 ## runs each as its own Godot process, runs tools/check_text.py (spec test 13), and prints one PASS,
 ## FAIL or MANUAL line per spec test 1 to 13. MANUAL means the automated part passed and a human step
-## is still needed (see tests/acceptance/ACCEPTANCE.md). Exit 0 only when every automatable test passes.
+## is still needed (see tests/ACCEPTANCE.md, the record for spec 20). Exit 0 only when every automatable test
+## passes and the record is in place.
 ##   godot --headless --path . --script res://tests/acceptance/acceptance_runner.gd
 
 const TIMEOUT_S := 600
 const CHECK_TEXT := "tools/check_text.py"
+## The record of spec 20 (spec 20: "Record results in /tests/ACCEPTANCE.md"). The runner reads its path and checks it exists.
+const RECORD := "res://tests/ACCEPTANCE.md"
 
 ## Spec 20 tests. "auto" lists headless tests (paths under tests/) that must pass. "manual" is the step
 ## a human still does. A spec test with no manual step and every auto test passing is PASS.
@@ -34,7 +37,7 @@ const SPEC := [
 		"manual": "the carbon shows the typed name, and the original shows H. VANCE on screen"},
 	{"n": 8, "title": "Unseen rule",
 		"auto": ["unit/test_unseen.gd", "acceptance/test_wiring.gd"],
-		"manual": "60 s stare at Desk 12 in play; the Desk 12 apparition, door silhouette and clock revert are not automated (see ACCEPTANCE.md)"},
+		"manual": "60 s stare at Desk 12 in play; the Desk 12 apparition, door silhouette and clock revert are not automated (see tests/ACCEPTANCE.md)"},
 	{"n": 9, "title": "Ghost typing",
 		"auto": ["unit/test_typewriter.gd", "acceptance/test_wiring.gd"],
 		"manual": "look away for 6 s on Day 3 in play"},
@@ -42,11 +45,11 @@ const SPEC := [
 		"auto": ["unit/test_acceptance_logic.gd", "tube/m6_test.gd"],
 		"manual": ""},
 	{"n": 11, "title": "No startle audit",
-		"auto": ["unit/test_audio.gd", "unit/test_unseen.gd"],
-		"manual": "zero loudness violations over a full playthrough (no test runs the checker over one)"},
+		"auto": ["unit/test_audio.gd", "unit/test_unseen.gd", "acceptance/test_full_loudness.gd"],
+		"manual": "visual part, pending: no object enters the frustum by appearing, and no clerk moves in view"},
 	{"n": 12, "title": "Save and continue",
-		"auto": ["unit/test_save.gd", "acceptance/test_spec_extras.gd"],
-		"manual": "quit from the title and continue on a real window"},
+		"auto": ["unit/test_save.gd", "acceptance/test_spec_extras.gd", "acceptance/test_continue_day3.gd"],
+		"manual": "pending: quit from the title and continue on a real window"},
 	{"n": 13, "title": "Text fidelity",
 		"auto": [CHECK_TEXT],
 		"manual": ""},
@@ -180,7 +183,9 @@ func _report() -> void:
 				spec_fail += 1
 		print("%-6s  spec test %2d  %s  |  %s" % [status, int(spec.n), String(spec.title), note])
 	print("")
-	var all_pass := auto_fail == 0 and spec_fail == 0
+	var record_ok := FileAccess.file_exists(RECORD)
+	print("RECORD: %s %s" % [RECORD.trim_prefix("res://"), "found" if record_ok else "MISSING"])
+	var all_pass := auto_fail == 0 and spec_fail == 0 and record_ok
 	print("SUMMARY: %d headless test(s) and text check, %d not passing; spec tests: %d PASS, %d MANUAL, %d FAIL" % [
 		_order.size(), auto_fail, spec_pass, spec_manual, spec_fail])
 	print("ACCEPTANCE RUNNER RESULT: %s" % ("PASS" if all_pass else "FAIL"))

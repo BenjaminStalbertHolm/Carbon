@@ -8,6 +8,7 @@ const MainScript := preload("res://scripts/main.gd")
 const DebugCommands := preload("res://scripts/debug/debug_commands.gd")
 const DebugConsole := preload("res://scripts/debug/debug_console.gd")
 const DebugGuard := preload("res://scripts/debug/debug_guard.gd")
+const DocModel := preload("res://scripts/logic/doc_model.gd")
 
 var _failures := 0
 var _checks := 0
@@ -35,6 +36,11 @@ func _check(ok: bool, label: String) -> void:
 func _first(text: String) -> String:
 	var lines: PackedStringArray = _cmd.run(text)
 	return lines[0] if lines.size() > 0 else ""
+
+
+func _write_text(sheet: Dictionary, text: String) -> void:
+	for i in range(text.length()):
+		DocModel.write_glyph(sheet.pages[0], 0, i, text.substr(i, 1), _gs.rng)
 
 
 func _all(text: String) -> String:
@@ -82,7 +88,7 @@ func _run() -> void:
 	_check(bool(_gs.flags.get("tray_line", false)), "day 5: the blank sheets carry the typed name line (D5-U1)")
 	_check(not bool(_gs.clerk_present.get("9", true)), "day 5: the Desk 9 clerk is redacted on RO-4")
 
-	# --- skip: complete the active task with its output (spec 21) ---
+	# --- skip: complete the active task with its output as it is (spec 21) ---
 	_first("day 1")
 	_dd.tick(10.0)
 	_dd.tick(5.0)
@@ -91,12 +97,35 @@ func _run() -> void:
 	_check(_gs.last_task_done == "P-1", "skip completes P-1")
 	_dd.tick(5.0)
 	_check(_dd.active_task == "T-1", "day 1: T-1 is the active task")
-	var sent := _first("skip")
-	_check(sent.begins_with("skip: sent SHEET-"), "skip on a transcription takes a blank sheet and sends it")
-	var t1 := float(_gs.accuracy.get("T-1", 0.0))
-	_check(t1 >= 0.98, "skip on T-1 copies the source in and scores as ACCEPTABLE (accuracy %.3f)" % t1)
+	# A sheet of T-1 is already out, with text typed on it: skip sends it with that text, adds none,
+	# and leaves its carbon on the carbon spot (spec 7.7 removal, not filed).
+	var out_sid := String(_dd.take_blank_sheet())
+	var out_carbon := String(_gs.docs[out_sid].twin)
+	_write_text(_gs.docs[out_sid], "HELLO")
+	_check(_gs.location_of(out_carbon) == "attached", "a sheet taken from the tray has its carbon attached")
+	var sent_out := _first("skip")
+	_check(sent_out.begins_with("skip: sent %s (the sheet out) for T-1" % out_sid), "skip sends the sheet of T-1 that is out")
+	_check(_gs.location_of(out_carbon) == "carbon_spot", "skip leaves the carbon of the sent sheet on the carbon spot, not filed")
+	_check(_gs.location_of(out_sid) == "removed", "skip takes the sent sheet out of the world")
+	_check(DocModel.typed_text(_gs.docs[out_sid].pages[0]).begins_with("HELLO"), "skip sends the sheet with its typed text as it is")
+	_check(float(_gs.accuracy.get("T-1", 1.0)) < 0.5, "skip adds no text: T-1 scores on the text typed, not on the source (%.3f)" % float(_gs.accuracy.get("T-1", 1.0)))
 	_check(_gs.last_task_done == "T-1", "skip completes T-1")
 	_check(_first("skip") == "skip: no task is active", "skip with no active task sends nothing")
+
+	# With no sheet of the task out, skip takes one sheet and carbon set from the tray and sends it blank.
+	_first("day 2")
+	_dd.tick(10.0)
+	_dd.tick(5.0)
+	_check(_dd.active_task == "T-2", "day 2: T-2 is the active task after the morning")
+	var tray_before := int(_gs.tray_count)
+	var blank := _first("skip")
+	var blank_id := blank.get_slice(" ", 2)
+	_check(blank.begins_with("skip: sent SHEET-") and blank.contains("(a blank sheet from the tray) for T-2"), "skip with no sheet out takes a blank sheet from the tray and sends it")
+	_check(int(_gs.tray_count) == tray_before - 1, "the blank sheet comes from the tray")
+	_check(float(_gs.accuracy.get("T-2", 1.0)) == 0.0, "the blank sheet scores 0: skip types nothing")
+	_check(DocModel.typed_text(_gs.docs[blank_id].pages[0]) == "", "the sent blank sheet has no text")
+	_check(_gs.location_of(String(_gs.docs[blank_id].twin)) == "carbon_spot", "the carbon of the blank sheet is on the carbon spot, not filed")
+	_check(_gs.last_task_done == "T-2", "skip completes T-2")
 
 	# --- ending A|B|C ---
 	_check(_first("ending C").begins_with("ending C is unavailable"), "ending C is refused while carbons_kept_at_final is below 3")
