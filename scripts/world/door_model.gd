@@ -13,6 +13,8 @@ const DOOR_HEIGHT := 2.1
 ## Centre x of the two doors (spec 6.1).
 const SUPERVISOR_X := 0.0
 const EXIT_X := -6.0
+## Door-local x of the exit leaf's hinge (its west edge). The leaf swings about this line.
+const EXIT_HINGE_X := 0.5
 const GLASS_BOTTOM := 1.05
 const HANDLE_X := 0.38
 const HANDLE_Y := 1.0
@@ -49,13 +51,17 @@ static func build_supervisor(parent: Node3D) -> Node3D:
 ## Locked except in Ending B (M10). The root is turned 180 degrees so +Z faces north.
 static func build_exit(parent: Node3D) -> Node3D:
 	var door := Geo.group(parent, "ExitDoor", Vector3(EXIT_X, 0.0, 6.0), Vector3(0, 180, 0))
-	Geo.add(door, Geo.quad(DOOR_WIDTH, DOOR_HEIGHT, Geo.TEX_STEEL, Geo.WHITE, 1.0, 0.0, "Panel"),
-		Vector3(0, DOOR_HEIGHT * 0.5, PANEL_Z))
-	_handle(door)
+	# The leaf (panel, handle and collision) hinges at its west edge, door-local x = +0.5, so it
+	# can swing 90 degrees outward (south) over 1.2 s (spec 15.2 step 2, endings/exit_door.gd).
+	var leaf := Geo.group(door, "Leaf", Vector3(EXIT_HINGE_X, 0.0, 0.0))
+	var shift := Vector3(EXIT_HINGE_X, 0.0, 0.0)
+	Geo.add(leaf, Geo.quad(DOOR_WIDTH, DOOR_HEIGHT, Geo.TEX_STEEL, Geo.WHITE, 1.0, 0.0, "Panel"),
+		Vector3(0, DOOR_HEIGHT * 0.5, PANEL_Z) - shift)
+	_handle(leaf, shift)
 	var sign_tex := TextTex.exit_sign(door)
 	Geo.add(door, Geo.quad(0.32, 0.12, sign_tex, Geo.WHITE, 0.0, 0.0, "Sign"),
 		Vector3(0, 2.45, PANEL_Z))
-	door.add_child(Geo.static_box(Vector3(DOOR_WIDTH, DOOR_HEIGHT, 0.04), Vector3(0, DOOR_HEIGHT * 0.5, 0), "Collision"))
+	leaf.add_child(Geo.static_box(Vector3(DOOR_WIDTH, DOOR_HEIGHT, 0.04), Vector3(0, DOOR_HEIGHT * 0.5, 0) - shift, "Collision"))
 	# Beyond the doorway, just outside the south wall face (z 6.2): the unlit black box of spec
 	# 15.2 step 2, 1.2 x 2.1 x 1.0 m (#000000). It fills the opening from outside (QUESTION-39).
 	Geo.add(parent, Geo.solid(Vector3(1.2, DOOR_HEIGHT, 1.0), Color("#000000"), "ExitBeyond"),
@@ -64,6 +70,6 @@ static func build_exit(parent: Node3D) -> Node3D:
 
 
 ## Chrome lever handle on the room side (local +Z), on a small rose plate.
-static func _handle(door: Node3D) -> void:
-	Geo.add(door, Geo.solid(Vector3(0.03, 0.10, 0.01), COL_CHROME, "Rose"), Vector3(HANDLE_X, HANDLE_Y, PANEL_Z + 0.005))
-	Geo.add(door, Geo.solid(Vector3(0.02, 0.02, 0.06), COL_CHROME, "Lever"), Vector3(HANDLE_X, HANDLE_Y, PANEL_Z + 0.04))
+static func _handle(door: Node3D, shift: Vector3 = Vector3.ZERO) -> void:
+	Geo.add(door, Geo.solid(Vector3(0.03, 0.10, 0.01), COL_CHROME, "Rose"), Vector3(HANDLE_X, HANDLE_Y, PANEL_Z + 0.005) - shift)
+	Geo.add(door, Geo.solid(Vector3(0.02, 0.02, 0.06), COL_CHROME, "Lever"), Vector3(HANDLE_X, HANDLE_Y, PANEL_Z + 0.04) - shift)
