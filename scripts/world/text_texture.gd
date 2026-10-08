@@ -4,6 +4,7 @@ extends RefCounted
 ## A ViewportTexture updates in place, so a surface can use it as soon as the
 ## SubViewport is in the tree. Nothing here is a new asset file.
 
+const Content := preload("res://scripts/logic/content.gd")
 const FONT := preload("res://assets/fonts/SpecialElite-Regular.ttf")
 const TEX_CHALK := preload("res://assets/textures/chalk_board.png")
 
@@ -86,24 +87,25 @@ static func nameplate(host: Node, text: String) -> ViewportTexture:
 	return sheet(host, Vector2i(64, 16), COL_PLATE_BODY, labels)
 
 
-## "SUPERVISOR" label painted on the frosted glass, 128 x 24 px (spec 5.5).
+## "SUPERVISOR" label painted on the frosted glass, 128 x 24 px (spec 5.5). Text from data/strings.json.
 static func supervisor_label(host: Node) -> ViewportTexture:
-	var labels := [label_entry("SUPERVISOR", Rect2(0, 0, 128, 24), 18, COL_SIGN_TEXT)]
+	var labels := [label_entry(String(Content.strings().door_labels.supervisor), Rect2(0, 0, 128, 24), 18, COL_SIGN_TEXT)]
 	return sheet(host, Vector2i(128, 24), COL_FROSTED, labels)
 
 
-## "EXIT" sign, 64 x 24 px, #2A2A28 on the wall upper colour (spec 5.5).
+## "EXIT" sign, 64 x 24 px, #2A2A28 on the wall upper colour (spec 5.5). Text from data/strings.json.
 static func exit_sign(host: Node) -> ViewportTexture:
-	var labels := [label_entry("EXIT", Rect2(0, 0, 64, 24), 16, COL_SIGN_TEXT)]
+	var labels := [label_entry(String(Content.strings().door_labels.exit), Rect2(0, 0, 64, 24), 16, COL_SIGN_TEXT)]
 	return sheet(host, Vector2i(64, 24), COL_WALL_UPPER, labels)
 
 
 ## Quota board chalk text, 256 x 160 px, Special Elite 28 px (spec 8.11).
 static func quota_board(host: Node, occupied: int) -> ViewportTexture:
+	var lines: Array = Content.strings().quota_board
 	var labels := [
-		label_entry("HALL C", Rect2(0, 22, 256, 36), 28, COL_CHALK),
-		label_entry("QUOTA", Rect2(0, 62, 256, 36), 28, COL_CHALK),
-		label_entry("%d/12" % occupied, Rect2(0, 102, 256, 36), 28, COL_CHALK),
+		label_entry(String(lines[0]), Rect2(0, 22, 256, 36), 28, COL_CHALK),
+		label_entry(String(lines[1]), Rect2(0, 62, 256, 36), 28, COL_CHALK),
+		label_entry(String(lines[2]).replace("{occupied}", str(occupied)), Rect2(0, 102, 256, 36), 28, COL_CHALK),
 	]
 	return sheet(host, Vector2i(256, 160), COL_KEYCAP, labels, TEX_CHALK)
 

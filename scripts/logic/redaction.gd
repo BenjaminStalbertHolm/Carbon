@@ -4,28 +4,20 @@ extends RefCounted
 ## bounded by non-letters or by the text edges, and longer aliases win overlaps.
 
 const DocModel := preload("res://scripts/logic/doc_model.gd")
+const Content := preload("res://scripts/logic/content.gd")
 
 const COVER_THRESHOLD := 0.8
 
-## Spec 14.3. Aliases are unsubstituted. The "nok" entity uses the {NEXT_OF_KIN}
-## token, which callers resolve through aliases_for(..., subst).
-const ALIASES := {
-	"aurel": ["MORAVEC, AUREL", "MORAVEC, A.", "AUREL MORAVEC"],
-	"ilse": ["MORAVEC, ILSE", "DR. ILSE MORAVEC", "ILSE MORAVEC"],
-	"dobra": ["DOBRA, KASIMIR"],
-	"fell": ["FELL, ODETTE"],
-	"abel": ["J. ABEL", "ABEL"],
-	"ferrand": ["N. FERRAND", "FERRAND"],
-	"vance": ["H. VANCE", "VANCE, H.", "VANCE", "H.V."],
-	"nok": ["{NEXT_OF_KIN}"],
-	"halvorsen": ["HALVORSEN, PETRA"],
-	"weiss": ["WEISS, CORA", "C. WEISS", "WEISS"],
-}
+## Spec 14.3 entity aliases, read from data/entities.json. Aliases are unsubstituted.
+## The "nok" entity uses the {NEXT_OF_KIN} token, which callers resolve through
+## aliases_for(..., subst).
+static func _alias_table() -> Dictionary:
+	return Content.load_json("res://data/entities.json").aliases
 
 
 static func aliases_for(entity: String, subst: Callable) -> Array:
 	var out: Array = []
-	for a in ALIASES.get(entity, []):
+	for a in _alias_table().get(entity, []):
 		out.append(subst.call(String(a)))
 	return out
 

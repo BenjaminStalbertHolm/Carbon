@@ -42,7 +42,6 @@ const LAMP_DELAY := 1.5
 const CLOCK_ANIM_S := 2.0
 const EXTRA_CLOCK := "16:58"
 const DAY_HUM_PITCH := {1: 1.0, 2: 1.0, 3: 0.99, 4: 0.98, 5: 0.965}
-const DAY_NAMES := {1: "MONDAY", 2: "TUESDAY", 3: "WEDNESDAY", 4: "THURSDAY", 5: "FRIDAY"}
 const FIXTURE_DESKS := {1: [1, 2], 2: [3, 4], 3: [5, 6], 4: [7, 8], 5: [9, 10], 6: [11, 12]}
 const PLAYER_DESK := 4
 const NAMEPLATE_LIMIT := 14
@@ -438,7 +437,7 @@ func _process_p1(doc: Dictionary) -> void:
 	var values := Doc.field_values(doc.pages[0])
 	g.player_name_raw = String(values.get("F1", ""))
 	g.next_of_kin_raw = String(values.get("F2", ""))
-	g.fond_word = FondWord.compute(String(values.get("F3", "")), _reserved_words)
+	g.fond_word = FondWord.compute(String(values.get("F3", "")), _reserved_words, String(_strings().defaults.fond_word))
 	g.p1_q4 = _classify_q4(String(values.get("F4", "")))
 	var name_clean := TextNorm.sanitize_name(String(values.get("F1", "")))
 	var sig_clean := TextNorm.sanitize_name(String(values.get("F5", "")))
@@ -562,7 +561,7 @@ func sheet_options(doc_id: String) -> Dictionary:
 		return {}
 	var vance_redacted: bool = g.redacted_names.has("vance")
 	return {
-		"field_substitution": {"F1": "H. VANCE"},
+		"field_substitution": {"F1": String(_strings().p1d_substitute)},
 		"field_bar": {"F1": vance_redacted},
 	}
 

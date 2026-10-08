@@ -4,10 +4,11 @@ extends RefCounted
 const Redaction := preload("res://scripts/logic/redaction.gd")
 
 
-## Spec 14.1: letters only, uppercase, first 12 letters. Replaced by QUIET if it
-## has fewer than 4 letters, or if it equals any whole word in the reserved set.
+## Spec 14.1: letters only, uppercase, first 12 letters. Replaced by replacement
+## (data/strings.json defaults.fond_word, QUIET) if it has fewer than 4 letters, or
+## if it equals any whole word in the reserved set.
 ## reserved_words is the set built by reserved_words_from() from the content.
-static func compute(raw: String, reserved_words: Array) -> String:
+static func compute(raw: String, reserved_words: Array, replacement: String) -> String:
 	var letters := ""
 	for ch in raw.to_upper():
 		var c := ch.unicode_at(0)
@@ -15,9 +16,9 @@ static func compute(raw: String, reserved_words: Array) -> String:
 			letters += ch
 	letters = letters.substr(0, 12)
 	if letters.length() < 4:
-		return "QUIET"
+		return replacement
 	if reserved_words.has(letters):
-		return "QUIET"
+		return replacement
 	return letters
 
 

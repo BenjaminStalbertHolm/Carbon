@@ -25,6 +25,7 @@ const ClockModel := preload("res://scripts/world/clock_model.gd")
 const FixtureModel := preload("res://scripts/world/fixture.gd")
 const DoorModel := preload("res://scripts/world/door_model.gd")
 const Nameplate := preload("res://scripts/world/nameplate.gd")
+const Content := preload("res://scripts/logic/content.gd")
 
 const PLAYER_DESK := 4
 const DESK_X := [-5.25, -1.75, 1.75, 5.25]
@@ -44,12 +45,10 @@ const FIXTURE_XZ := [
 	Vector2(-3.5, 3.5), Vector2(3.5, 3.5), Vector2(-3.5, 0.5),
 	Vector2(3.5, 0.5), Vector2(-3.5, -2.5), Vector2(3.5, -2.5),
 ]
-## Day 1 nameplate text (spec 8.9). Desk 4 is replaced by player_name. Desk 12 is blank.
-const DEFAULT_NAMEPLATES := {
-	"1": "I. DRESCH", "2": "P. MAREK", "3": "L. HOLLIS", "4": "0412",
-	"5": "S. KAVANAGH", "6": "O. LINDQVIST", "7": "J. ABEL", "8": "N. FERRAND",
-	"9": "C. WEISS", "10": "V. ORLO", "11": "E. MARCH", "12": "",
-}
+## Day 1 nameplate text (spec 8.9), read from data/strings.json. Desk 4 is replaced
+## by player_name. Desk 12 is blank.
+static func default_nameplates() -> Dictionary:
+	return Content.strings().nameplates.duplicate()
 
 
 ## Builds Hall C under parent and returns the HallC root node.
@@ -88,7 +87,7 @@ static func _occupied_list(options: Dictionary) -> Array:
 
 
 static func _nameplate_texts(options: Dictionary) -> Dictionary:
-	var texts: Dictionary = DEFAULT_NAMEPLATES.duplicate()
+	var texts: Dictionary = default_nameplates()
 	var given: Dictionary = options.get("nameplates", {})
 	for key in given:
 		texts[str(key)] = str(given[key])

@@ -199,5 +199,20 @@
     "A_ghost": "CLERK 0412 HAS BEEN REASSIGNED.",
     "C_first": "RECORD RESTORED"
   },
-  "carried_forward_title": "CARRIED FORWARD FROM RO-2"
+  "carried_forward_title": "CARRIED FORWARD FROM RO-2",
+  "defaults": {
+    "player_name": "CLERK 0412",
+    "player_first_name": "CLERK",
+    "next_of_kin": "M. ALDER",
+    "fond_word": "QUIET"
+  },
+  "token_words": {
+    "p1_q4_yes": "YES",
+    "p1_q4_no": "NO",
+    "p1_q4_other": "OTHER",
+    "signature_true": "TRUE",
+    "signature_false": "FALSE"
+  },
+  "correction_add_prefix": "ADD: ",
+  "p1d_substitute": "H. VANCE"
 }

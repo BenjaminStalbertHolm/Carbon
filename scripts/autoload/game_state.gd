@@ -5,8 +5,6 @@ extends Node
 
 const SAVE_VERSION := 1
 const LOCATIONS := ["inbox", "read_stack", "carbon_spot", "drawer", "removed", "attached"]
-const DEFAULT_PLAYER_NAME := "CLERK 0412"
-const DEFAULT_NEXT_OF_KIN := "M. ALDER"
 
 signal state_changed
 

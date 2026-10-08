@@ -6,19 +6,20 @@ const TextNorm := preload("res://scripts/logic/text_norm.gd")
 const Redaction := preload("res://scripts/logic/redaction.gd")
 const FondWord := preload("res://scripts/logic/fond_word.gd")
 
-const DEFAULT_PLAYER_NAME := "CLERK 0412"
-const DEFAULT_NEXT_OF_KIN := "M. ALDER"
+const Content := preload("res://scripts/logic/content.gd")
 
 
 ## Spec 14.1 token values for the current game state.
 func token_values() -> Dictionary:
 	var gs := get_node("/root/GameState")
 	var name := TextNorm.sanitize_name(gs.player_name_raw) if gs.player_name_raw != "" else ""
-	var player := name if name != "" else DEFAULT_PLAYER_NAME
-	var first := TextNorm.first_part(player) if name != "" else "CLERK"
+	var defaults: Dictionary = Content.strings().defaults
+	var words: Dictionary = Content.strings().token_words
+	var player := name if name != "" else String(defaults.player_name)
+	var first := TextNorm.first_part(player) if name != "" else String(defaults.player_first_name)
 	var kin := TextNorm.sanitize_name(gs.next_of_kin_raw) if gs.next_of_kin_raw != "" else ""
 	if kin == "":
-		kin = DEFAULT_NEXT_OF_KIN
+		kin = String(defaults.next_of_kin)
 	return {
 		"PLAYER_NAME": player,
 		"PLAYER_NAME_TC": TextNorm.title_case(player),
@@ -26,14 +27,18 @@ func token_values() -> Dictionary:
 		"PLAYER_FIRST_NAME_TC": TextNorm.title_case(first),
 		"NEXT_OF_KIN": kin,
 		"NEXT_OF_KIN_TC": TextNorm.title_case(kin),
-		"FOND_WORD": gs.fond_word if gs.fond_word != "" else "QUIET",
-		"P1_Q4": _p1_q4_word(gs.p1_q4),
-		"SIGNATURE_MATCHES": "TRUE" if gs.signature_matches else "FALSE",
+		"FOND_WORD": gs.fond_word if gs.fond_word != "" else String(defaults.fond_word),
+		"P1_Q4": _p1_q4_word(gs.p1_q4, words),
+		"SIGNATURE_MATCHES": String(words.signature_true) if gs.signature_matches else String(words.signature_false),
 	}
 
 
-static func _p1_q4_word(q: String) -> String:
-	return q if q == "YES" or q == "NO" else "OTHER"
+static func _p1_q4_word(q: String, words: Dictionary) -> String:
+	if q == "YES":
+		return String(words.p1_q4_yes)
+	if q == "NO":
+		return String(words.p1_q4_no)
+	return String(words.p1_q4_other)
 
 
 ## Replaces every runtime token in text. Unknown braces are left alone, so form

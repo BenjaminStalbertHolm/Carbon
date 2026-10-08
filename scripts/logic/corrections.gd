@@ -5,6 +5,7 @@ extends RefCounted
 const DocModel := preload("res://scripts/logic/doc_model.gd")
 const TextNorm := preload("res://scripts/logic/text_norm.gd")
 const Lev := preload("res://scripts/logic/levenshtein.gd")
+const Content := preload("res://scripts/logic/content.gd")
 
 const MIN_SIMILARITY := 0.6
 
@@ -104,7 +105,7 @@ static func _write_insert(page: Dictionary, text: String, line: int, col: int, r
 		c += 1
 
 
-## Spec 8.6 step 5: "ADD: " plus the replacement, in red typed glyphs, on the
+## Spec 8.6 step 5: the ADD prefix (data/strings.json) plus the replacement, in red typed glyphs, on the
 ## first empty line below the last typed line.
 static func _write_add(page: Dictionary, text: String, rng: RandomNumberGenerator) -> void:
 	var last := -1
@@ -115,7 +116,7 @@ static func _write_add(page: Dictionary, text: String, rng: RandomNumberGenerato
 				break
 	var line_i := mini(last + 1, DocModel.LINES - 1)
 	var col_i := 0
-	for ch in "ADD: " + text:
+	for ch in String(Content.strings().correction_add_prefix) + text:
 		if col_i >= DocModel.COLS:
 			col_i = 0
 			line_i = mini(line_i + 1, DocModel.LINES - 1)
