@@ -28,6 +28,7 @@ var _bed_ramp: Dictionary = {}  # bed name -> start fade fraction, 0 (silent) to
 var _bed_tweens: Dictionary = {}  # bed name -> the tween running its start fade
 var _hum_pitch := 1.0
 var _fixtures_lit := FIXTURE_COUNT
+var _spatial_parent: Node = null
 
 
 func _ready() -> void:
@@ -187,8 +188,14 @@ func set_master_volume_percent(v: int) -> void:
 
 ## Moves the positional players under the 3D node that holds the listener. Call before playing.
 func set_spatial_parent(parent: Node) -> void:
+	_spatial_parent = parent
 	_pool.reparent_all(parent)
 	_beds["vent_shepard"].reparent(parent, true)
+
+
+## The node the positional sounds are under: the pipeline's world while the game runs (null until set).
+func spatial_parent() -> Node:
+	return _spatial_parent
 
 
 ## Debug loudness checker (spec 11.1). Only active in debug builds.

@@ -230,6 +230,12 @@ func loaded_doc_id() -> String:
 	return _sheet_id if _loaded else ""
 
 
+## The typing view's own camera (spec 6.3). Gaze looks through it while the typing view is open (spec 9.1),
+## so the typewriter is seen while the player types on it.
+func typing_camera() -> Camera3D:
+	return _cam
+
+
 # --- Entry points (M3 calls these) ------------------------------------------------------
 
 func open_typing_view(doc_id: String = "") -> bool:

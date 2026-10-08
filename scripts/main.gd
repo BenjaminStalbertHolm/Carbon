@@ -26,6 +26,7 @@ const EndingsController := preload("res://scripts/endings/endings_controller.gd"
 const EndingsPresentation := preload("res://scripts/endings/endings_presentation.gd")
 const ClerkBehaviour := preload("res://scripts/world/clerk_behaviour.gd")
 const ClockBehaviour := preload("res://scripts/world/clock_behaviour.gd")
+const GhostTyper := preload("res://scripts/world/ghost_typer.gd")
 const READ_VIEW_SCENE := preload("res://scenes/ui/read_view.tscn")
 const MENU_SCENE := preload("res://scenes/ui/menu_folder.tscn")
 const BLACK_SCENE := preload("res://scenes/ui/black_paper.tscn")
@@ -73,6 +74,8 @@ var endings = null  # EndingsController (spec 15): flags for menu, desk, standin
 var endings_pres = null  # RoomPresentation (an EndingsPresentation): carries out the ending sequences
 var clerk_world = null  # ClerkBehaviour: clerk typing, redaction removals and restoration
 var clock_world = null  # ClockBehaviour: the clock hands and clock_tick
+var ghost_typer = null  # GhostTyper (spec 10.2, 10.3): ghost typing on the typewriter, Days 3 and 4
+var typewriter_node: Node3D = null  # Typewriter04: the typewriter that Gaze and the ghost typer watch
 
 var _running := false
 var _typing_flag := false
@@ -226,6 +229,36 @@ func _build() -> void:
 	endings.setup(endings_pres)
 	endings.bind_interaction(interaction, player, desk)
 	endings.returned_to_title.connect(_on_endings_returned)
+	_wire_world_systems()
+
+
+## Connects the systems that read the world (spec 9.1, 9.2, 10.2, 11.4). Called once from _build, after
+## the hall, the player and the views exist. Gaze reads the player's camera; the unseen registry reads
+## the hall; positional sound needs its listener inside the pipeline's SubViewport; ghost typing runs on
+## the typewriter view's model.
+func _wire_world_systems() -> void:
+	var gaze = _autoload("Gaze")
+	if gaze != null:
+		gaze.set_camera(player.camera())
+	var un = _autoload("UnseenChanges")
+	if un != null:
+		un.bind_hall(hall)
+	for child in pipeline.get_children():
+		if child is SubViewport:
+			(child as SubViewport).audio_listener_enable_3d = true
+	var ad = _autoload("AudioDirector")
+	if ad != null:
+		ad.set_spatial_parent(pipeline.world)
+	typewriter_node = hall.find_child("Typewriter04", true, false) as Node3D
+	ghost_typer = GhostTyper.new()
+	ghost_typer.name = "GhostTyper"
+	add_child(ghost_typer)
+	ghost_typer.setup(typewriter.model, typewriter_node)
+	typewriter.opened.connect(_on_typing_opened)
+	typewriter.sheet_released.connect(_on_sheet_released)
+	var gs = _gs()
+	if gs != null:
+		gs.state_changed.connect(_sync_typewriter_sheet)
 
 
 # --- Front-end flow (spec 16.1, 16.2, 13.1) ---------------------------------------------
@@ -250,6 +283,7 @@ func _on_new_game() -> void:
 	_reset_world()
 	_dd().start_new_game()
 	_apply_day_world()
+	_apply_day_start_changes()
 	player.reset_seated()
 	await black.run_day_title(1, true)
 	await black.fade_in(FADE_IN_S)
@@ -261,7 +295,13 @@ func _on_continue() -> void:
 	if _transition:
 		return
 	var save = _autoload("SaveSystem")
-	if save == null or not bool(save.load_game()):
+	if save == null:
+		return
+	# The view drops its sheet first: the loaded state brings its own copies of the documents, so the
+	# view must reload from them (the sync after the load does that). A failed load re-syncs the old state.
+	typewriter.unload_sheet()
+	if not bool(save.load_game()):
+		_sync_typewriter_sheet()
 		return
 	_transition = true
 	title.hide_title()
@@ -271,6 +311,11 @@ func _on_continue() -> void:
 	player.reset_seated()
 	_dd().begin_day(int(_gs().day))
 	_apply_day_world()
+	# Spec 9.2: the applied changes come back on the world, then the day's own changes the save did not hold.
+	var un = _autoload("UnseenChanges")
+	if un != null:
+		un.restore_visuals()
+	_apply_day_start_changes()
 	await black.fade_in(FADE_IN_S)
 	_begin_running()
 
@@ -283,8 +328,13 @@ func _on_day_ended(day: int) -> void:
 	_running = false
 	_transition = true
 	await black.run_day_title(day + 1, false)
+	# Spec 9.2: changes still pending at the end of the day apply in the black screen, before the overnight step.
+	var un = _autoload("UnseenChanges")
+	if un != null:
+		un.flush_pending()
 	_dd().start_next_day()
 	_apply_day_world()
+	_apply_day_start_changes()
 	player.reset_seated()
 	await black.fade_in(FADE_IN_S)
 	_begin_running()
@@ -303,6 +353,7 @@ func debug_start_game(seed_value: int = 4242) -> void:
 	_reset_world()
 	_dd().start_new_game(seed_value)
 	_apply_day_world()
+	_apply_day_start_changes()
 	player.reset_seated()
 	black.set_shade(0.0)
 	_running = false
@@ -352,6 +403,15 @@ func _apply_day_world() -> void:
 	clerk_world.apply_day_state(int(gs.day))
 
 
+## Spec 9.2: the day-start changes of the current day apply during the black screen, after the world
+## has followed the day's state. Each change is applied once (UnseenChanges keeps the flags).
+func _apply_day_start_changes() -> void:
+	var gs = _gs()
+	var un = _autoload("UnseenChanges")
+	if gs != null and un != null:
+		un.apply_day_start(int(gs.day))
+
+
 ## A new game or a continue after an ending: the clerks type and the clock runs again.
 func _reset_world() -> void:
 	if clerk_world != null:
@@ -391,6 +451,18 @@ func _sync_focus() -> void:
 	var desk_off: bool = endings != null and endings.desk_locked()
 	player.set_input_enabled(not focus and not ending_off)
 	interaction.set_enabled(not focus and not desk_off)
+	_sync_gaze_and_ghosts()
+
+
+## Spec 9.1: while the read view or the typing view is open, Gaze counts the world as out of frustum,
+## except the typewriter during typing. Spec 10.3: ghost typing runs only while the day runs.
+func _sync_gaze_and_ghosts() -> void:
+	var gaze = _autoload("Gaze")
+	if gaze != null:
+		var reading: bool = read_view != null and read_view.is_open()
+		gaze.overlay_open(reading or _typing_flag, typewriter_node if _typing_flag else null)
+	if ghost_typer != null:
+		ghost_typer.set_active(_running)
 
 
 func _on_pause_requested(paused: bool) -> void:
@@ -433,8 +505,47 @@ func _on_read_closed() -> void:
 	read_view_closed.emit(id)
 
 
+## The typing view is open (spec 6.3): Gaze looks through the typing camera, so the typewriter is seen while
+## the player types on it, and ghost typing stops.
+func _on_typing_opened() -> void:
+	var gaze = _autoload("Gaze")
+	if gaze != null and typewriter != null:
+		gaze.set_camera(typewriter.typing_camera())
+	if ghost_typer != null:
+		ghost_typer.set_typing_view(true)
+
+
 func _on_typing_closed() -> void:
 	_typing_flag = false
+	var gaze = _autoload("Gaze")
+	if gaze != null and player != null:
+		gaze.set_camera(player.camera())
+	if ghost_typer != null:
+		ghost_typer.set_typing_view(false)
+
+
+## Spec 10.3: a ghost sheet the player takes off the typewriter ends the ghost typing of that day.
+func _on_sheet_released(doc_id: String) -> void:
+	var gs = _gs()
+	if gs == null or not gs.docs.has(doc_id):
+		return
+	if String(gs.docs[doc_id].get("kind", "")) == "ghost":
+		gs.ghost_sheet_removed_by_player[str(int(gs.day))] = true
+
+
+## The typewriter view holds one loaded sheet, and GameState.loc.typewriter names the sheet on the typewriter
+## (spec 6.4). When the state changes, the view follows it: a ghost sheet placed there (spec 9.3 D3-U3, D4-U3)
+## is loaded so that ghost typing (spec 10.2) can run on it, and a sheet that has left is unloaded.
+func _sync_typewriter_sheet() -> void:
+	var gs = _gs()
+	if gs == null or typewriter == null:
+		return
+	var want := String(gs.loc.typewriter)
+	if typewriter.loaded_doc_id() == want:
+		return
+	typewriter.unload_sheet()
+	if want != "":
+		typewriter.load_sheet(want)
 
 
 # --- Services --------------------------------------------------------------------------

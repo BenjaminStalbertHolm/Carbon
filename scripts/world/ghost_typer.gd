@@ -57,6 +57,13 @@ class Core:
 	var sheet_id := ""
 	var trig := Trigger.new()
 	var on_line_finished := Callable()
+	var active := true  # false while no day runs (a transition, the title or the menu): no ghost writes
+
+	## The day is running (spec 10.3). Turning it off stops any ghost writes at once.
+	func set_active(on: bool) -> void:
+		if not on and active:
+			_stop(float(Time.get_ticks_msec()))
+		active = on
 
 	func set_day(new_day: int, new_lines: Array, done_count: int) -> void:
 		day = new_day
@@ -83,6 +90,9 @@ class Core:
 			return
 		if line_active and not model.ghost_pending():
 			_finish_line(now)
+		if not active:
+			_stop(now)
+			return
 		if in_frustum:
 			_stop(now)
 		var fired := trig.step(delta, unseen, distance, in_frustum)
@@ -156,6 +166,12 @@ func setup(model, typewriter_node: Node3D) -> void:
 ## The typewriter view calls this when the typing view opens (true) or closes (false).
 func set_typing_view(on: bool) -> void:
 	_core.set_typing_view(on)
+
+
+## main.gd calls this every frame with the day state: false while a transition, the title or the
+## menu holds the screen, so no ghost keys are written then (spec 10.3).
+func set_active(on: bool) -> void:
+	_core.set_active(on)
 
 
 ## Plays the ghost-typed sounds of an event batch (spec 11.1): key_clack, bell and
