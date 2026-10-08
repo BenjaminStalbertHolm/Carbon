@@ -114,10 +114,13 @@ static func _add_environment(root: Node3D) -> void:
 	root.add_child(world_env)
 
 
-## Walls, dado rails, floor and ceiling (spec 6.1 and 5.7).
+## Walls, dado rails, floor and ceiling (spec 6.1 and 5.7). The north and south walls are
+## cut for the two doorways (QUESTION-39).
 static func _add_shell(root: Node3D) -> void:
-	_wall(root, "WallNorth", Vector3(0.0, 0.0, -6.1), Vector3(18.4, WALL_HEIGHT, 0.2), Vector3(0, 0, 1), 18.0)
-	_wall(root, "WallSouth", Vector3(0.0, 0.0, 6.1), Vector3(18.4, WALL_HEIGHT, 0.2), Vector3(0, 0, -1), 18.0)
+	_wall(root, "WallNorth", Vector3(0.0, 0.0, -6.1), Vector3(18.4, WALL_HEIGHT, 0.2), Vector3(0, 0, 1), 18.0,
+		[DoorModel.opening_span(DoorModel.SUPERVISOR_X)])
+	_wall(root, "WallSouth", Vector3(0.0, 0.0, 6.1), Vector3(18.4, WALL_HEIGHT, 0.2), Vector3(0, 0, -1), 18.0,
+		[DoorModel.opening_span(DoorModel.EXIT_X)])
 	_wall(root, "WallEast", Vector3(9.1, 0.0, 0.0), Vector3(0.2, WALL_HEIGHT, 12.0), Vector3(-1, 0, 0), 12.0)
 	_wall(root, "WallWest", Vector3(-9.1, 0.0, 0.0), Vector3(0.2, WALL_HEIGHT, 12.0), Vector3(1, 0, 0), 12.0)
 	Geo.add(root, Geo.quad(18.0, 12.0, Geo.TEX_FLOOR, Geo.WHITE, 1.0, 0.0, "Floor"), Vector3.ZERO, Vector3(-90, 0, 0))
@@ -125,22 +128,72 @@ static func _add_shell(root: Node3D) -> void:
 		Vector3(0.0, WALL_HEIGHT, 0.0), Vector3(90, 0, 0))
 
 
-## One wall: lower box (wall_lower below 1.1 m), upper box (wall_upper above), a
-## collision box, and a dado rail on the room-side face. inward is the unit vector
-## pointing into the room; rail_len is the interior length of the rail.
-static func _wall(root: Node3D, wall_name: String, centre: Vector3, size: Vector3, inward: Vector3, rail_len: float) -> void:
+## One wall: lower box (below 1.1 m), upper box (above), a collision box, and a dado rail
+## on the room-side face. inward is the unit vector pointing into the room; rail_len is the
+## interior length of the rail. openings are doorways cut through an x-running wall, as x
+## ranges Vector2(x0, x1), from the floor to DoorModel.DOOR_HEIGHT. Each doorway leaves a
+## lintel above it, and the wall and its rail are split around it.
+static func _wall(root: Node3D, wall_name: String, centre: Vector3, size: Vector3, inward: Vector3, rail_len: float, openings: Array = []) -> void:
 	var wall := Geo.group(root, wall_name)
-	var upper_h := WALL_HEIGHT - DADO_Y
-	Geo.add(wall, Geo.box(Vector3(size.x, DADO_Y, size.z), Geo.TEX_WALL_LOWER, Geo.WHITE, 1.5, "Lower"),
-		Vector3(centre.x, DADO_Y * 0.5, centre.z))
-	Geo.add(wall, Geo.box(Vector3(size.x, upper_h, size.z), Geo.TEX_WALL_UPPER, Geo.WHITE, 1.5, "Upper"),
-		Vector3(centre.x, DADO_Y + upper_h * 0.5, centre.z))
-	# The rail sits 0.01 m inside the interior face, with thickness DADO_DEPTH.
 	var along_x := absf(inward.z) > 0.5
-	var rail_size := Vector3(rail_len, DADO_HEIGHT, DADO_DEPTH) if along_x else Vector3(DADO_DEPTH, DADO_HEIGHT, rail_len)
-	var rail_centre := Vector3(centre.x, DADO_Y, centre.z) + inward * 0.11
-	Geo.add(wall, Geo.solid(rail_size, COL_DADO, "Dado"), rail_centre)
-	wall.add_child(Geo.static_box(size, Vector3(centre.x, WALL_HEIGHT * 0.5, centre.z), "Collision"))
+	var mid := centre.x if along_x else centre.z
+	var wall_len := size.x if along_x else size.z
+	var thick := size.z if along_x else size.x
+	var k := 0
+	for run in _runs(mid - wall_len * 0.5, mid + wall_len * 0.5, openings):
+		_wall_span(wall, "%d" % k, centre, along_x, thick, run.x, run.y, 0.0, WALL_HEIGHT)
+		k += 1
+	for i in openings.size():
+		var o: Vector2 = openings[i]
+		_wall_span(wall, "Lintel%d" % i, centre, along_x, thick, o.x, o.y, DoorModel.DOOR_HEIGHT, WALL_HEIGHT)
+	# The rail sits 0.11 m from the wall centre, toward the room, with thickness DADO_DEPTH.
+	k = 0
+	for run in _runs(mid - rail_len * 0.5, mid + rail_len * 0.5, openings):
+		var rail_len_run: float = run.y - run.x
+		var rail_mid: float = (run.x + run.y) * 0.5
+		var rail_size := Vector3(rail_len_run, DADO_HEIGHT, DADO_DEPTH) if along_x else Vector3(DADO_DEPTH, DADO_HEIGHT, rail_len_run)
+		var rail_base := Vector3(rail_mid, DADO_Y, centre.z) if along_x else Vector3(centre.x, DADO_Y, rail_mid)
+		Geo.add(wall, Geo.solid(rail_size, COL_DADO, "Dado%d" % k), rail_base + inward * 0.11)
+		k += 1
+
+
+## The parts of [lo, hi] left after cutting each opening (sorted Vector2(x0, x1)) out of it.
+static func _runs(lo: float, hi: float, openings: Array) -> Array:
+	var out: Array = []
+	var cursor := lo
+	for o in openings:
+		if o.x > cursor:
+			out.append(Vector2(cursor, o.x))
+		cursor = maxf(cursor, o.y)
+	if hi > cursor:
+		out.append(Vector2(cursor, hi))
+	return out
+
+
+## Wall material and collision for the span a..b along the wall, from height y0 to y1. The
+## part below the dado height takes the lower texture, the part above the upper one.
+static func _wall_span(wall: Node3D, tag: String, centre: Vector3, along_x: bool, thick: float, a: float, b: float, y0: float, y1: float) -> void:
+	var split := clampf(DADO_Y, y0, y1)
+	if split > y0:
+		var lower := _span_box(centre, along_x, thick, a, b, y0, split)
+		Geo.add(wall, Geo.box(lower[0], Geo.TEX_WALL_LOWER, Geo.WHITE, 1.5, "Lower" + tag), lower[1])
+	if y1 > split:
+		var upper := _span_box(centre, along_x, thick, a, b, split, y1)
+		Geo.add(wall, Geo.box(upper[0], Geo.TEX_WALL_UPPER, Geo.WHITE, 1.5, "Upper" + tag), upper[1])
+	var col := _span_box(centre, along_x, thick, a, b, y0, y1)
+	wall.add_child(Geo.static_box(col[0], col[1], "Collision" + tag))
+
+
+## [size, position] of a box spanning a..b along the wall and y0..y1 up, with its thickness
+## across the wall.
+static func _span_box(centre: Vector3, along_x: bool, thick: float, a: float, b: float, y0: float, y1: float) -> Array:
+	var seg := b - a
+	var h := y1 - y0
+	var pos_y := (y0 + y1) * 0.5
+	var mid := (a + b) * 0.5
+	if along_x:
+		return [Vector3(seg, h, thick), Vector3(mid, pos_y, centre.z)]
+	return [Vector3(thick, h, seg), Vector3(centre.x, pos_y, mid)]
 
 
 static func _add_windows(root: Node3D) -> void:

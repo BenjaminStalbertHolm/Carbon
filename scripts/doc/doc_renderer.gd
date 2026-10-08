@@ -333,12 +333,19 @@ static func _ink_colour(ink: String, carbon: bool) -> Color:
 	return COL_INK
 
 
+## Opacity of each of the two carbon passes for a glyph of opacity glyph_alpha (spec 6.5,
+## QUESTION-36). Where the passes overlap they composite to 1 - (1 - a)^2, which must equal
+## CARBON_OPACITY x glyph_alpha, so a = 1 - sqrt(1 - CARBON_OPACITY x glyph_alpha).
+static func carbon_pass_alpha(glyph_alpha: float) -> float:
+	return 1.0 - sqrt(1.0 - CARBON_OPACITY * glyph_alpha)
+
+
 static func _draw_glyph(ci: CanvasItem, ch: String, pos: Vector2, colour: Color, alpha: float, carbon: bool) -> void:
 	if ch == "" or ch == " ":
 		return
 	if carbon:
-		# Carbon ink: the glyph drawn twice, 0.6 px apart, at reduced opacity (spec 6.5).
-		var a := alpha * CARBON_OPACITY * 0.5
+		# Carbon ink: the glyph drawn twice, 0.6 px apart (spec 6.5), each pass at carbon_pass_alpha.
+		var a := carbon_pass_alpha(alpha)
 		ci.draw_string(FONT_TYPED, pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, TYPED_SIZE, Color(colour, a))
 		ci.draw_string(FONT_TYPED, pos + Vector2(CARBON_BLUR, 0.0), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, TYPED_SIZE, Color(colour, a))
 		return
@@ -432,9 +439,10 @@ static func _paint_strikes(ci: CanvasItem, page: Dictionary) -> void:
 		ci.draw_rect(Rect2(x0, y - STRIKE_H * 0.5, x1 - x0, STRIKE_H), COL_RED)
 
 
-## Stamp impressions (spec 8.1, 8.4). x and y are the centre, rot is in degrees.
-## The first 20% of the impression's pixels are knocked out to opacity 0.3 by
-## paper-coloured squares at alpha 0.7, seeded by stamp.seed.
+## Stamp impressions (spec 8.1, 8.4). x and y are the centre, rot is in degrees. Each
+## impression is a box with a 4 px border and its words centred. Then 20% of the box's
+## pixels are knocked out to opacity 0.3 by paper-coloured squares at alpha 0.7, seeded by
+## stamp.seed. NO SUCH ADDRESSEE is drawn the same way (same style as stamps).
 static func _paint_stamps(ci: CanvasItem, page: Dictionary) -> void:
 	for st in page.stamps:
 		var word := String(st.word)
@@ -443,24 +451,77 @@ static func _paint_stamps(ci: CanvasItem, page: Dictionary) -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = int(st.seed)
 		ci.draw_set_transform(Vector2(float(st.x), float(st.y)), deg_to_rad(float(st.rot)), Vector2.ONE)
-		if word == NO_SUCH_WORD:
-			var size_n := NO_SUCH_SIZE
-			var tsz := FONT_TYPED.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, size_n)
-			var asc := FONT_TYPED.get_ascent(size_n)
-			var desc := FONT_TYPED.get_descent(size_n)
-			var base_y := (asc - desc) * 0.5
-			ci.draw_string(FONT_TYPED, Vector2(-tsz.x * 0.5, base_y), word, HORIZONTAL_ALIGNMENT_LEFT, -1, size_n, Color(colour, a))
-			_knock_out(ci, rng, Rect2(-tsz.x * 0.5, -(asc + desc) * 0.5, tsz.x, asc + desc))
-		else:
-			var size_s := STAMP_SIZE_LONG if word == STAMP_LONG_WORD else STAMP_SIZE
-			var rect := Rect2(-STAMP_W * 0.5, -STAMP_H * 0.5, STAMP_W, STAMP_H)
-			ci.draw_rect(rect, Color(colour, a), false, STAMP_BORDER)
-			var tw := FONT_TYPED.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, size_s).x
-			var asc2 := FONT_TYPED.get_ascent(size_s)
-			var desc2 := FONT_TYPED.get_descent(size_s)
-			ci.draw_string(FONT_TYPED, Vector2(-tw * 0.5, (asc2 - desc2) * 0.5), word, HORIZONTAL_ALIGNMENT_LEFT, -1, size_s, Color(colour, a))
-			_knock_out(ci, rng, rect)
+		var rect := impression_rect(word)
+		ci.draw_rect(rect, Color(colour, a), false, STAMP_BORDER)
+		_draw_impression_text(ci, word, Color(colour, a))
+		_knock_out(ci, rng, rect)
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Lines an impression word is set on, each centred (spec 8.1, QUESTION-31). RETURNED —
+## UNPROCESSED at 24 px is wider than the 260 px box, so it is set on two lines.
+static func stamp_lines(word: String) -> Array:
+	if word == STAMP_LONG_WORD:
+		return ["RETURNED —", "UNPROCESSED"]
+	return [word]
+
+
+## Font size of an impression's words (spec 8.1, 8.4).
+static func stamp_font_size(word: String) -> int:
+	if word == NO_SUCH_WORD:
+		return NO_SUCH_SIZE
+	if word == STAMP_LONG_WORD:
+		return STAMP_SIZE_LONG
+	return STAMP_SIZE
+
+
+## Horizontal space the stamp box leaves beside its words: half the gap between the 260 px
+## box and the widest one-line stamp word at 34 px (spec 8.1). The NO SUCH ADDRESSEE box
+## uses the same margin on each side of its text (QUESTION-32).
+static func stamp_margin_x() -> float:
+	var widest := 0.0
+	for w in ["APPROVED", "DENIED", "PROCESSED"]:
+		widest = maxf(widest, FONT_TYPED.get_string_size(w, HORIZONTAL_ALIGNMENT_LEFT, -1, STAMP_SIZE).x)
+	return (STAMP_W - widest) * 0.5
+
+
+## Impression box in local pixels, centred on the origin. Stamps are 260 x 70 (spec 8.1).
+## NO SUCH ADDRESSEE is 70 tall and as wide as its text plus the stamp margin on each side
+## (QUESTION-32).
+static func impression_rect(word: String) -> Rect2:
+	if word == NO_SUCH_WORD:
+		var w := FONT_TYPED.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, NO_SUCH_SIZE).x + 2.0 * stamp_margin_x()
+		return Rect2(-w * 0.5, -STAMP_H * 0.5, w, STAMP_H)
+	return Rect2(-STAMP_W * 0.5, -STAMP_H * 0.5, STAMP_W, STAMP_H)
+
+
+## Height of one line of an impression's text: ascent plus descent at its font size.
+static func stamp_line_pitch(word: String) -> float:
+	var size_n := stamp_font_size(word)
+	return FONT_TYPED.get_ascent(size_n) + FONT_TYPED.get_descent(size_n)
+
+
+## Height of all the lines of an impression's text, as one block.
+static func stamp_block_height(word: String) -> float:
+	return stamp_lines(word).size() * stamp_line_pitch(word)
+
+
+## Width of one line of an impression's text.
+static func stamp_line_width(line: String, word: String) -> float:
+	return FONT_TYPED.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, stamp_font_size(word)).x
+
+
+## The lines of an impression's text, centred on the origin as one block.
+static func _draw_impression_text(ci: CanvasItem, word: String, colour: Color) -> void:
+	var size_n := stamp_font_size(word)
+	var asc := FONT_TYPED.get_ascent(size_n)
+	var pitch := stamp_line_pitch(word)
+	var lines := stamp_lines(word)
+	var top := -float(lines.size()) * pitch * 0.5
+	for i in range(lines.size()):
+		var line := String(lines[i])
+		var tw := stamp_line_width(line, word)
+		ci.draw_string(FONT_TYPED, Vector2(-tw * 0.5, top + float(i) * pitch + asc), line, HORIZONTAL_ALIGNMENT_LEFT, -1, size_n, colour)
 
 
 ## One pixel square per chosen pixel: STAMP_KNOCK of the area in rect.

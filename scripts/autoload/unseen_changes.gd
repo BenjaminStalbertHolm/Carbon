@@ -413,16 +413,18 @@ func _reg(id: String, day: int, after: String, target: String, op: String, rever
 	}
 
 
-## Head-and-shoulders silhouette (spec 9.3 D4-U2): a flat mesh inside a 0.45 x 0.95 quad,
-## a rounded rectangle 0.45 x 0.60 at the bottom and a head circle r = 0.11 with its top
-## at 0.95. Faces +Z (the room side).
+## Head-and-shoulders silhouette (spec 9.3 D4-U2): a flat mesh within a 0.45 x 0.95 quad.
+## The outline is a rounded rectangle 0.45 x 0.60 with its bottom edge at y = 0, and a head
+## circle r = 0.11 sitting atop it, its lowest point on the rectangle's top edge (QUESTION-40).
+## The outline is therefore 0.82 m tall, with its bottom on the bottom of the 0.95 m bounds.
+## Faces +Z (the room side).
 static func silhouette_mesh() -> MeshInstance3D:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var body := _rounded_rect_points(0.225, 0.60, 0.10)
 	_fan(st, Vector2(0.0, 0.30), body)
-	var head := _circle_points(Vector2(0.0, 0.84), 0.11, 16)
-	_fan(st, Vector2(0.0, 0.84), head)
+	var head := _circle_points(Vector2(0.0, 0.71), 0.11, 16)
+	_fan(st, Vector2(0.0, 0.71), head)
 	st.set_normal(Vector3(0.0, 0.0, 1.0))
 	var mesh := st.commit()
 	var geo = load(GEOMETRY_PATH)

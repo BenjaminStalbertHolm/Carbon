@@ -1,17 +1,16 @@
-extends Control
-## SettingsPage (spec 16.3): a paper page of "NAME [VALUE]" rows and BACK. Each
-## change is persisted at once by SaveSystem. Left and Right, or a click on the
-## left or right half of a row, decrease, increase or toggle it. BACK, or a click
-## on it, emits back_requested.
-##
-## The owner (title screen or menu folder) shows and hides this Control, and sends
-## keys to key_pressed() while it is showing.
+extends RefCounted
+## SettingsPage (spec 16.3): the "NAME [VALUE]" lines and BACK, drawn on the paper sheet the
+## page was opened from (the title sheet, or the paper inside the menu folder). The page has
+## no sheet or backdrop of its own. show_on() replaces the sheet's rows, and hide_page() ends
+## the page so the owner rebuilds its own rows. While showing(), the owner sends the sheet's
+## hover and click to hovered() and clicked(), and the keys to key_pressed().
+## Left and Right, or a click on the left or right half of a line, decrease, increase or
+## toggle it. BACK, Enter on BACK, or a click on BACK emits back_requested. Each change is
+## persisted at once by SaveSystem.
 
 const Content := preload("res://scripts/logic/content.gd")
 const PaperMenu := preload("res://scripts/ui/paper_menu.gd")
 
-const SHEET_HEIGHT := 0.8
-const SHEET_ASPECT := 0.75
 const FLOAT_STEP := 0.1
 const INT_STEP := 10
 
@@ -31,38 +30,31 @@ const ROWS := [
 
 signal back_requested
 
-var _dim: ColorRect
-var _sheet: PaperMenu
+var _sheet: PaperMenu = null
 var _sel := 0
 
 
-func _ready() -> void:
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	_dim = ColorRect.new()
-	_dim.color = Color(0, 0, 0, 0.0)
-	_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_dim)
-	_sheet = PaperMenu.new()
-	_sheet.row_hovered.connect(_on_hover)
-	_sheet.row_clicked.connect(_on_click)
-	add_child(_sheet)
-	get_viewport().size_changed.connect(_layout)
-	_layout()
-	visible = false
+## True while the page is drawn on a sheet.
+func showing() -> bool:
+	return _sheet != null
 
 
-## Shows the page. dim_alpha darkens what is behind it (1.0 on the title screen).
-func show_page(dim_alpha: float) -> void:
-	_dim.color = Color(0, 0, 0, dim_alpha)
+## Draws the page on sheet, replacing its rows. The owner hides its own rows first.
+func show_on(sheet: PaperMenu) -> void:
+	_sheet = sheet
 	_sel = 0
 	refresh()
-	visible = true
+
+
+## Ends the page. The owner rebuilds its own rows.
+func hide_page() -> void:
+	_sheet = null
 
 
 ## Rebuilds every row from the current settings.
 func refresh() -> void:
+	if _sheet == null:
+		return
 	var rows: Array = []
 	for i in range(ROWS.size()):
 		rows.append({"text": _row_text(i), "option": true})
@@ -70,8 +62,32 @@ func refresh() -> void:
 	_sheet.set_selected(_sel)
 
 
-## Returns true when the key was used.
+## Pointer hover over a line selects it.
+func hovered(option: int) -> void:
+	if _sheet == null:
+		return
+	_sel = option
+	_sheet.set_selected(option)
+
+
+## A click: BACK returns, a toggle flips, a value steps by the side of the line that was clicked.
+func clicked(option: int, x_fraction: float) -> void:
+	if _sheet == null:
+		return
+	hovered(option)
+	var kind := String(ROWS[option].kind)
+	if kind == "back":
+		back_requested.emit()
+	elif kind == "toggle":
+		_adjust(option, 1)
+	else:
+		_adjust(option, -1 if x_fraction < 0.5 else 1)
+
+
+## Returns true when the key was used. Enter does nothing on a value line; Esc is never used here.
 func key_pressed(code: int) -> bool:
+	if _sheet == null:
+		return false
 	match code:
 		KEY_UP:
 			_move(-1)
@@ -88,14 +104,6 @@ func key_pressed(code: int) -> bool:
 		_:
 			return false
 	return true
-
-
-func _layout() -> void:
-	var vp := get_viewport_rect().size
-	var h := vp.y * SHEET_HEIGHT
-	var w := h * SHEET_ASPECT
-	_sheet.position = (vp - Vector2(w, h)) * 0.5
-	_sheet.size = Vector2(w, h)
 
 
 func _move(step: int) -> void:
@@ -141,22 +149,6 @@ func _row_text(i: int) -> String:
 			var index := int(row.on_index) if on else 1 - int(row.on_index)
 			value = String(st.values[name][index])
 	return "%s [%s]" % [name, value]
-
-
-func _on_hover(option: int) -> void:
-	_sel = option
-	_sheet.set_selected(option)
-
-
-func _on_click(option: int, x_fraction: float) -> void:
-	_on_hover(option)
-	var kind := String(ROWS[option].kind)
-	if kind == "back":
-		back_requested.emit()
-	elif kind == "toggle":
-		_adjust(option, 1)
-	else:
-		_adjust(option, -1 if x_fraction < 0.5 else 1)
 
 
 func _save() -> Node:

@@ -1,8 +1,8 @@
 extends Node
-## AudioDirector (autoload): one-shot SFX pools, ambient beds, hum pitch per day, master volume and
-## the debug loudness checker (spec 11). All players are children of this node. Positional sounds are
-## heard by the listener of the viewport that contains them: call set_spatial_parent() with that
-## viewport's 3D node if the 3D world is not in the root viewport.
+## AudioDirector (autoload): one-shot SFX pools, ambient beds, hum pitch per day, master volume,
+## seamless loops (the marker drag) and the debug loudness checker (spec 11). All players are
+## children of this node. Positional sounds are heard by the listener of the viewport that contains
+## them: call set_spatial_parent() with that viewport's 3D node if the 3D world is not in the root viewport.
 
 const SfxPool := preload("res://scripts/audio/sfx_pool.gd")
 const LoudnessChecker := preload("res://scripts/audio/loudness_checker.gd")
@@ -14,12 +14,18 @@ const GHOST_GAIN_DB := -20.0
 const SILENT_DB := -80.0
 const FIXTURE_COUNT := 6
 const VENT_POSITION := Vector3(5.25, 3.19, 3.5)
+## Every bed fades in from silence over this many seconds when it starts (the 2.0 s of the spec 13.1
+## fade-in). The fade is the bed's attack for Rule A (spec 11.1), see LoudnessChecker.BED_RAMP_MS.
+const BED_RAMP_S := 2.0
 
 var _pool: SfxPool
 var _checker: LoudnessChecker
 var _rng := RandomNumberGenerator.new()
 var _streams: Dictionary = {}
+var _loop_streams: Dictionary = {}
 var _beds: Dictionary = {}
+var _bed_ramp: Dictionary = {}  # bed name -> start fade fraction, 0 (silent) to 1 (full)
+var _bed_tweens: Dictionary = {}  # bed name -> the tween running its start fade
 var _hum_pitch := 1.0
 var _fixtures_lit := FIXTURE_COUNT
 
@@ -44,7 +50,9 @@ func _ready() -> void:
 	add_child(vent)
 	vent.global_position = VENT_POSITION
 	_beds["vent_shepard"] = vent
-	_apply_hum_volume()
+	for bed_name in _beds.keys():
+		_bed_ramp[bed_name] = 1.0
+		_apply_bed_volume(bed_name)
 
 
 ## Plays a one-shot from assets/audio/<sound>.wav. gain_db adds to the file level.
@@ -79,6 +87,31 @@ func play_ghost(sound: String, pos: Vector3 = Vector3.ZERO, positional: bool = t
 	play(sound, pos, positional, gain_db + extra, false)
 
 
+## Starts a seamless loop of assets/audio/<sound>.wav (spec 11.3, marker_stroke). The loop is held
+## until stop_loop(handle), or until max_seconds have passed when max_seconds is above 0. A loop is
+## player-caused (the marker is dragged by the player, spec 8.2). Returns the handle, 0 if the sound is missing.
+func start_loop(sound: String, pos: Vector3 = Vector3.ZERO, positional: bool = false, gain_db: float = 0.0, max_seconds: float = 0.0) -> int:
+	var stream := _loop_stream(sound)
+	if stream == null:
+		return 0
+	if _checker.is_active():
+		_checker.record(sound, "loop 3D" if positional else "loop", stream, gain_db, true)
+	var handle := _pool.start_loop(stream, positional, gain_db, pos)
+	if max_seconds > 0.0 and is_inside_tree():
+		get_tree().create_timer(max_seconds).timeout.connect(stop_loop.bind(handle))
+	return handle
+
+
+func stop_loop(handle: int) -> void:
+	_pool.stop_loop(handle)
+
+
+func is_loop_playing(handle: int) -> bool:
+	return _pool.is_loop_playing(handle)
+
+
+## Starts a bed (spec 11.2). The bed fades in from silence over BED_RAMP_S, so its attack is at least
+## 150 ms (Rule A, spec 11.1); it then settles at bed_target_db().
 func start_bed(bed_name: String) -> void:
 	var bed = _beds.get(bed_name)
 	if bed == null:
@@ -91,19 +124,28 @@ func start_bed(bed_name: String) -> void:
 		return
 	bed.stream = stream
 	if _checker.is_active():
-		_checker.record(bed_name, "bed 3D" if bed is AudioStreamPlayer3D else "bed", stream, bed.volume_db, false)
+		_checker.record(bed_name, "bed 3D" if bed is AudioStreamPlayer3D else "bed", stream,
+			bed_target_db(bed_name), false, LoudnessChecker.BED_RAMP_MS)
+	_start_fade_in(bed_name)
 	bed.play()
 
 
 func stop_bed(bed_name: String) -> void:
 	var bed = _beds.get(bed_name)
 	if bed != null:
+		_stop_fade_in(bed_name)
 		bed.stop()
 
 
 func is_bed_playing(bed_name: String) -> bool:
 	var bed = _beds.get(bed_name)
 	return bed != null and bed.playing
+
+
+## The level a bed settles at, in dB: room_tone and the vent at the file level, the hum at its lit
+## fraction (spec 11.2). A started bed fades up to this level.
+func bed_target_db(bed_name: String) -> float:
+	return _db_for_gain(_bed_gain(bed_name))
 
 
 ## Hum pitch for a day (spec 11.2): days 1-2 1.000, day 3 0.990, day 4 0.980, day 5 0.965.
@@ -126,7 +168,7 @@ static func hum_pitch_for_day(day: int) -> float:
 ## Hum amplitude = base x (lit fixtures / 6). 0 lit means silent. Takes effect immediately.
 func set_fixtures_lit(count: int) -> void:
 	_fixtures_lit = clampi(count, 0, FIXTURE_COUNT)
-	_apply_hum_volume()
+	_apply_bed_volume("hum")
 
 
 ## The vent above Desk 4 (spec 11.2): Days 4-5 only. The caller decides when.
@@ -183,9 +225,42 @@ func _ensure_buses() -> void:
 			AudioServer.set_bus_send(idx, MASTER_BUS)
 
 
-func _apply_hum_volume() -> void:
-	var hum = _beds["hum"]
-	hum.volume_db = SILENT_DB if _fixtures_lit == 0 else linear_to_db(float(_fixtures_lit) / FIXTURE_COUNT)
+## Steady amplitude of a bed: 1.0 for room_tone and the vent, lit fixtures / 6 for the hum.
+func _bed_gain(bed_name: String) -> float:
+	if bed_name == "hum":
+		return float(_fixtures_lit) / FIXTURE_COUNT
+	return 1.0
+
+
+## Sets a bed's volume from its steady gain times its start fade. Zero is silent.
+func _apply_bed_volume(bed_name: String) -> void:
+	var bed = _beds[bed_name]
+	bed.volume_db = _db_for_gain(_bed_gain(bed_name) * float(_bed_ramp[bed_name]))
+
+
+static func _db_for_gain(gain: float) -> float:
+	return SILENT_DB if gain <= 0.0 else maxf(linear_to_db(gain), SILENT_DB)
+
+
+func _start_fade_in(bed_name: String) -> void:
+	_stop_fade_in(bed_name)
+	_bed_ramp[bed_name] = 0.0
+	_apply_bed_volume(bed_name)
+	var tween := create_tween()
+	tween.tween_method(_set_bed_fade.bind(bed_name), 0.0, 1.0, BED_RAMP_S)
+	_bed_tweens[bed_name] = tween
+
+
+func _stop_fade_in(bed_name: String) -> void:
+	var tween = _bed_tweens.get(bed_name)
+	if tween != null and tween.is_valid():
+		tween.kill()
+	_bed_tweens.erase(bed_name)
+
+
+func _set_bed_fade(fraction: float, bed_name: String) -> void:
+	_bed_ramp[bed_name] = fraction
+	_apply_bed_volume(bed_name)
 
 
 func _stream(sound: String) -> AudioStreamWAV:
@@ -203,12 +278,32 @@ func _stream(sound: String) -> AudioStreamWAV:
 ## Beds loop forever: forward loop over the whole file (spec 11.2).
 func _bed_stream(bed_name: String) -> AudioStreamWAV:
 	var stream := _stream(bed_name)
-	if stream != null and stream.loop_mode != AudioStreamWAV.LOOP_FORWARD:
-		var sample_bytes := 1 if stream.format == AudioStreamWAV.FORMAT_8_BITS else 2
-		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		stream.loop_begin = 0
-		stream.loop_end = stream.data.size() / (sample_bytes * (2 if stream.stereo else 1))
+	if stream != null:
+		_set_whole_file_loop(stream)
 	return stream
+
+
+## A seamless loop for the marker drag. It is a copy of the one-shot stream, so the one-shot
+## marker_stroke stays unlooped.
+func _loop_stream(sound: String) -> AudioStreamWAV:
+	if _loop_streams.has(sound):
+		return _loop_streams[sound]
+	var source := _stream(sound)
+	if source == null:
+		return null
+	var stream := source.duplicate() as AudioStreamWAV
+	_set_whole_file_loop(stream)
+	_loop_streams[sound] = stream
+	return stream
+
+
+static func _set_whole_file_loop(stream: AudioStreamWAV) -> void:
+	if stream.loop_mode == AudioStreamWAV.LOOP_FORWARD:
+		return
+	var sample_bytes := 1 if stream.format == AudioStreamWAV.FORMAT_8_BITS else 2
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_begin = 0
+	stream.loop_end = stream.data.size() / (sample_bytes * (2 if stream.stereo else 1))
 
 
 static func _is_ghost_sound(sound: String) -> bool:

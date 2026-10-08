@@ -11,6 +11,7 @@ const DocModel := preload("res://scripts/logic/doc_model.gd")
 const Content := preload("res://scripts/logic/content.gd")
 const PaperQuad := preload("res://scripts/doc/paper_quad.gd")
 const NotebookView := preload("res://scripts/doc/notebook_view.gd")
+const FONT_TYPED := preload("res://assets/fonts/SpecialElite-Regular.ttf")
 
 const DAY1_IDS := ["M1-WELCOME", "P-1", "T-1-COVER", "L-1", "S-1-COVER", "S-1", "EOS-STANDARD", "NB-1"]
 const HELLO_ROW := 3
@@ -43,6 +44,8 @@ func _run() -> void:
 	_test_page_cache()
 	_test_paper_quad()
 	_test_notebook_pages()
+	_test_impressions()
+	_test_carbon_passes()
 	print("DOC LAYOUT: %d docs, %d problems" % [DAY1_IDS.size(), problems])
 	print("doc render checks: %d run, %d failed" % [_checks, _fails])
 	quit(0 if (problems == 0 and _fails == 0) else 1)
@@ -200,10 +203,58 @@ func _test_paper_quad() -> void:
 	mi.free()
 
 
-## The notebook shows pages 1..day, one NB document per day (spec 14.13).
+## The notebook has five pages (spec 14.13, QUESTION-34). Pages 1..day hold their NB
+## document, the later pages exist and are blank, and the view opens on page day.
 func _test_notebook_pages() -> void:
 	var docs: Array = NotebookView.page_docs(3)
-	_check(docs.size() == 3, "notebook on day 3 has three pages")
-	if docs.size() == 3:
-		_check(String(docs[2].id) == "NB-3" and String(docs[0].id) == "NB-1", "notebook pages are NB-1..NB-3 in order")
-	_check(NotebookView.page_docs(0).is_empty(), "notebook on day 0 has no pages")
+	_check(docs.size() == 5, "notebook on day 3 has five pages")
+	if docs.size() == 5:
+		_check(String(docs[0].id) == "NB-1" and String(docs[2].id) == "NB-3" and String(docs[4].id) == "NB-5", "notebook pages are NB-1..NB-5 in order")
+		var page3: Dictionary = docs[2].pages[0]
+		_check(not page3.paragraphs.is_empty(), "notebook page 3 (the current day) has its text")
+		var blank := true
+		for i in [3, 4]:
+			var later: Dictionary = docs[i].pages[0]
+			blank = blank and later.paragraphs.is_empty() and later.printed.is_empty() and later.cells.is_empty()
+		_check(blank, "notebook pages after day 3 are blank")
+	_check(NotebookView.open_index(3) == 2, "notebook opens on page 3 on day 3")
+	_check(NotebookView.open_index(5) == 4 and NotebookView.open_index(1) == 0, "notebook opens on page day on days 1 and 5")
+
+
+## Spec 8.1 and 8.4 (QUESTION-31, 32): every impression's words fit its box, RETURNED —
+## UNPROCESSED is set on two lines, and NO SUCH ADDRESSEE has a box as wide as its text.
+func _test_impressions() -> void:
+	var long_lines: Array = DocRenderer.stamp_lines("RETURNED — UNPROCESSED")
+	_check(long_lines.size() == 2 and String(long_lines[0]) == "RETURNED —" and String(long_lines[1]) == "UNPROCESSED", "RETURNED — UNPROCESSED is set on two lines")
+	_check(DocRenderer.stamp_lines("PROCESSED") == ["PROCESSED"], "a one-line stamp word is set on one line")
+	_check(DocRenderer.stamp_font_size("RETURNED — UNPROCESSED") == 24 and DocRenderer.stamp_font_size("APPROVED") == 34, "stamp words at 34 px, the long stamp at 24 px")
+	_check(DocRenderer.stamp_font_size("NO SUCH ADDRESSEE") == 30, "NO SUCH ADDRESSEE is set at 30 px")
+	var inner_w := DocRenderer.STAMP_W - 2.0 * DocRenderer.STAMP_BORDER
+	var inner_h := DocRenderer.STAMP_H - 2.0 * DocRenderer.STAMP_BORDER
+	for w in ["APPROVED", "DENIED", "PROCESSED", "RETURNED — UNPROCESSED"]:
+		_check(DocRenderer.impression_rect(w).size.is_equal_approx(Vector2(260.0, 70.0)), "%s is in a 260 x 70 box" % w)
+		var widest := 0.0
+		for line in DocRenderer.stamp_lines(w):
+			widest = maxf(widest, DocRenderer.stamp_line_width(String(line), w))
+		_check(widest <= inner_w, "%s fits the box width (%.1f px)" % [w, widest])
+		_check(DocRenderer.stamp_block_height(w) <= inner_h, "%s fits the box height (%.1f px)" % [w, DocRenderer.stamp_block_height(w)])
+	var no_such := "NO SUCH ADDRESSEE"
+	var text_w := FONT_TYPED.get_string_size(no_such, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
+	var margin := DocRenderer.stamp_margin_x()
+	var box := DocRenderer.impression_rect(no_such)
+	_check(text_w > DocRenderer.STAMP_W, "NO SUCH ADDRESSEE at 30 px is wider than the 260 px stamp box (%.1f px)" % text_w)
+	_check(absf(box.size.x - (text_w + 2.0 * margin)) < 0.01, "NO SUCH ADDRESSEE box is its text plus the stamp margin on each side")
+	_check(absf(box.size.y - 70.0) < 0.01, "NO SUCH ADDRESSEE box is 70 px tall")
+	_check(margin > DocRenderer.STAMP_BORDER, "the stamp margin is wider than the 4 px border")
+
+
+## Spec 6.5 and QUESTION-36: the two carbon passes composite to 0.85 x the glyph opacity
+## where they overlap, so each pass is 1 - sqrt(1 - 0.85 x alpha).
+func _test_carbon_passes() -> void:
+	var ok := true
+	for glyph_alpha in [0.82, 0.9, 1.0]:
+		var pass_a := DocRenderer.carbon_pass_alpha(glyph_alpha)
+		var overlap := 1.0 - (1.0 - pass_a) * (1.0 - pass_a)
+		ok = ok and absf(overlap - 0.85 * glyph_alpha) < 0.0001 and pass_a < glyph_alpha
+	_check(ok, "carbon passes composite to 0.85 x glyph opacity where they overlap")
+	_check(absf(DocRenderer.carbon_pass_alpha(1.0) - (1.0 - sqrt(0.15))) < 0.0001, "a full-opacity carbon glyph has a pass alpha of about 0.613")

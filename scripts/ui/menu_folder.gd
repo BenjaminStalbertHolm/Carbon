@@ -1,8 +1,9 @@
 extends CanvasLayer
 ## MenuFolder (spec 16.2): the Esc menu in free view. A manila folder (#C9B58A, 70%
 ## of the window height, tab PERSONNEL — 0412) holds a paper with RESUME,
-## SETTINGS, QUIT TO TITLE and QUIT TO DESKTOP. The two quits first show the
-## progress warning with YES / NO. Esc or RESUME closes the folder.
+## SETTINGS, QUIT TO TITLE and QUIT TO DESKTOP. SETTINGS replaces the rows of that
+## paper with the settings page (spec 16.3). The two quits first show the
+## progress warning with YES / NO, and NO is highlighted. Esc or RESUME closes the folder.
 ##
 ## The folder does not pause the tree. It reports pause_requested(true) on open()
 ## and pause_requested(false) on close(), and the controller pauses the tree.
@@ -37,7 +38,7 @@ var _body: ColorRect
 var _tab: ColorRect
 var _tab_label: Label
 var _sheet: PaperMenu
-var _settings: Control
+var _settings: SettingsPage
 var _mode := "menu"  # "menu", "warning" or "settings"
 var _ids: Array = []
 var _sel := 0
@@ -78,7 +79,6 @@ func _ready() -> void:
 	_folder.add_child(_sheet)
 	_settings = SettingsPage.new()
 	_settings.back_requested.connect(_on_settings_back)
-	add_child(_settings)
 	get_viewport().size_changed.connect(_layout)
 	_layout()
 	visible = false
@@ -95,7 +95,7 @@ func open() -> void:
 	_mode = "menu"
 	_sel = 0
 	_quit_target = ""
-	_settings.visible = false
+	_settings.hide_page()
 	_folder.visible = true
 	_build()
 	visible = true
@@ -107,6 +107,7 @@ func close() -> void:
 	if not visible:
 		return
 	visible = false
+	_settings.hide_page()
 	pause_requested.emit(false)
 	closed.emit()
 
@@ -169,32 +170,32 @@ func _ask_quit(target: String, option: int) -> void:
 	_quit_target = target
 	_return_sel = option
 	_mode = "warning"
-	_sel = 0
+	_sel = 1  # NO is highlighted: a reflexive Enter must not lose the day's progress
 	_build()
 
 
 func _show_settings() -> void:
 	_mode = "settings"
-	_folder.visible = false
-	_settings.show_page(0.0)
+	_settings.show_on(_sheet)
 
 
 func _on_settings_back() -> void:
+	_settings.hide_page()
 	_mode = "menu"
-	_settings.visible = false
-	_folder.visible = true
 	_build()
 
 
 func _on_hover(option: int) -> void:
 	if _mode == "settings":
+		_settings.hovered(option)
 		return
 	_sel = option
 	_sheet.set_selected(option)
 
 
-func _on_click(option: int, _x_fraction: float) -> void:
+func _on_click(option: int, x_fraction: float) -> void:
 	if _mode == "settings":
+		_settings.clicked(option, x_fraction)
 		return
 	_on_hover(option)
 	_activate(option)
@@ -239,9 +240,14 @@ func _layout() -> void:
 	_tab_label.size = Vector2(tab_w - fw * 0.04, tab_h)
 	_body.position = Vector2(0.0, tab_h)
 	_body.size = Vector2(fw, fh - tab_h)
+	# The paper keeps the A4 ratio (spec 6.5), fits below the tab inside the folder, and is centred.
 	var inset := fw * INSET
-	_sheet.position = Vector2(inset, tab_h + inset)
-	_sheet.size = Vector2(fw - 2.0 * inset, fh - tab_h - 2.0 * inset)
+	var room_w := fw - 2.0 * inset
+	var room_h := fh - tab_h - 2.0 * inset
+	var sheet_h := minf(room_h, room_w / PaperMenu.A4_ASPECT)
+	var sheet_w := sheet_h * PaperMenu.A4_ASPECT
+	_sheet.position = Vector2((fw - sheet_w) * 0.5, tab_h + inset)
+	_sheet.size = Vector2(sheet_w, sheet_h)
 
 
 func _day_name() -> String:

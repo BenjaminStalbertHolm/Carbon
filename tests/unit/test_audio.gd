@@ -123,14 +123,15 @@ func _check_rules(streams: Dictionary) -> void:
 			continue
 		var info := LoudnessAnalyser.analyse(stream)
 		var rule := "B" if player else "A"
-		var summary := "%-22s peak %7.2f dBFS  attack %7.1f ms" % [sound, info["peak_db"], info["attack_ms"]]
-		var problem := LoudnessChecker.judge(info["peak_db"], info["attack_ms"], player)
+		var attack: float = LoudnessChecker.applied_attack_ms(sound, info["attack_ms"])
+		var summary := "%-22s peak %7.2f dBFS  attack %7.1f ms" % [sound, info["peak_db"], attack]
+		var problem := LoudnessChecker.judge(info["peak_db"], attack, player)
 		if problem == "":
 			_check(true, "Rule %s  %s" % [rule, summary])
 		elif LoudnessChecker.is_exempt(sound, problem):
 			_problems += 1
 			_exempt_problems += 1
-			print("EXEMPT  Rule %s  %s -- %s. Exemption: %s" % [rule, summary, problem, LoudnessChecker.EXEMPTIONS[sound]])
+			print("EXEMPT  Rule %s  %s -- %s. Exemption: %s" % [rule, summary, problem, LoudnessChecker.EXEMPTIONS[sound]["reason"]])
 		else:
 			_problems += 1
 			_check(false, "Rule %s  %s -- %s" % [rule, summary, problem])
@@ -166,16 +167,19 @@ func _check_director() -> void:
 	_ad.start_bed("room_tone")
 	_ad.start_bed("hum")
 	_check(_ad.is_bed_playing("room_tone") and _ad.is_bed_playing("hum"), "start_bed starts room_tone and hum")
+	_check(_ad.bed_player("room_tone").volume_db <= -79.9 and _ad.bed_player("hum").volume_db <= -79.9,
+		"beds start silent and fade in over %.1f s (their attack, Rule A)" % (LoudnessChecker.BED_RAMP_MS / 1000.0))
+	_check(LoudnessChecker.BED_RAMP_MS >= LoudnessChecker.RULE_A_MIN_ATTACK_MS, "the bed fade-in is at least 150 ms")
 	var room_stream = _ad.bed_player("room_tone").stream
 	_check(room_stream.loop_mode == AudioStreamWAV.LOOP_FORWARD and room_stream.loop_end == 441000,
 		"room_tone loops forward over all 441000 frames")
 	_ad.set_fixtures_lit(3)
-	var hum_db: float = _ad.bed_player("hum").volume_db
-	_check(absf(hum_db - linear_to_db(0.5)) < 0.01, "hum follows 3 of 6 fixtures lit (%.2f dB)" % hum_db)
+	var hum_db: float = _ad.bed_target_db("hum")
+	_check(absf(hum_db - linear_to_db(0.5)) < 0.01, "hum settles at 3 of 6 fixtures lit (%.2f dB)" % hum_db)
 	_ad.set_fixtures_lit(0)
-	_check(_ad.bed_player("hum").volume_db <= -80.0, "hum silent with 0 fixtures lit")
+	_check(_ad.bed_target_db("hum") <= -80.0, "hum settles silent with 0 fixtures lit")
 	_ad.set_fixtures_lit(6)
-	_check(absf(_ad.bed_player("hum").volume_db) < 0.01, "hum at 0 dB with all 6 fixtures lit")
+	_check(absf(_ad.bed_target_db("hum")) < 0.01, "hum settles at 0 dB with all 6 fixtures lit")
 	for pair in [[1, 1.0], [2, 1.0], [3, 0.99], [4, 0.98], [5, 0.965]]:
 		_ad.set_hum_pitch(pair[0])
 		_check(absf(_ad.bed_player("hum").pitch_scale - pair[1]) < 0.0001,
@@ -186,6 +190,12 @@ func _check_director() -> void:
 	_check(not _ad.is_bed_playing("vent_shepard"), "set_vent_active(false) stops vent_shepard")
 	_ad.stop_bed("room_tone")
 	_check(not _ad.is_bed_playing("room_tone"), "stop_bed stops room_tone")
+	var loop_id: int = _ad.start_loop("marker_stroke", Vector3.ZERO, false, -6.0, 1.2)
+	_check(loop_id > 0 and _ad.is_loop_playing(loop_id), "start_loop holds a pooled player on marker_stroke")
+	var marker_src = ResourceLoader.load("res://assets/audio/marker_stroke.wav")
+	_check(marker_src.loop_mode != AudioStreamWAV.LOOP_FORWARD, "the marker_stroke one-shot stays unlooped (the loop is a copy)")
+	_ad.stop_loop(loop_id)
+	_check(not _ad.is_loop_playing(loop_id), "stop_loop ends the loop and frees its player")
 
 	_ad.set_master_volume_percent(0)
 	var master := AudioServer.get_bus_index("Master")
@@ -211,6 +221,11 @@ func _check_director() -> void:
 		"checker exempts tube_thunk (documented Rule A exception)")
 	_ad.play_ghost("key_clack", Vector3.ZERO, false)
 	_check(_ad.get_checker_violations() == v0 + 1, "ghost key_clack at -20 dB passes Rule A")
+	_ad.play("fixture_off", Vector3.ZERO, false, 0.0, false)
+	_check(_ad.get_checker_violations() == v0 + 1 and _ad.get_checker_exempt_playbacks() == e0 + 2,
+		"checker exempts only the attack of fixture_off (peak -28 dBFS)")
+	_ad.play("fixture_off", Vector3.ZERO, false, 6.0, false)
+	_check(_ad.get_checker_violations() == v0 + 2, "checker still flags fixture_off above -24 dBFS (peak checked)")
 	_ad.set_checker_enabled(false)
 	var p1: int = _ad.get_checker_playbacks()
 	_ad.play("key_clack_1", Vector3.ZERO, false, 0.0, false)

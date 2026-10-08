@@ -1,7 +1,8 @@
 extends RefCounted
-## Doors (spec 6.1, 8.13 and 5.5). Each door root sits on its wall's room-side face,
-## and its local +Z points into the room. Panels are quads, so each wall stays a solid
-## box. Collision is a box covering the door leaf.
+## Doors (spec 6.1, 8.13, 5.5 and 15.2). Each door root sits on its wall's room-side face,
+## and its local +Z points into the room. Panels are quads, and collision is a box covering
+## the door leaf. The north and south walls are cut for the two doorways (hall_c.gd, QUESTION-39).
+## Beyond the exit doorway is the unlit black box of spec 15.2, which fills the opening from outside.
 
 const Geo := preload("res://scripts/world/geometry.gd")
 const TextTex := preload("res://scripts/world/text_texture.gd")
@@ -9,6 +10,9 @@ const TextTex := preload("res://scripts/world/text_texture.gd")
 const COL_CHROME := Color("#A8A8A0")
 const DOOR_WIDTH := 1.0
 const DOOR_HEIGHT := 2.1
+## Centre x of the two doors (spec 6.1).
+const SUPERVISOR_X := 0.0
+const EXIT_X := -6.0
 const GLASS_BOTTOM := 1.05
 const HANDLE_X := 0.38
 const HANDLE_Y := 1.0
@@ -16,10 +20,15 @@ const HANDLE_Y := 1.0
 const PANEL_Z := 0.02
 
 
+## x range of a doorway in a wall, centred on x_centre, as Vector2(x0, x1).
+static func opening_span(x_centre: float) -> Vector2:
+	return Vector2(x_centre - DOOR_WIDTH * 0.5, x_centre + DOOR_WIDTH * 0.5)
+
+
 ## Supervisor door: north wall, centred x = 0. Steel lower half, frosted glass upper half
 ## with the SUPERVISOR label. Always locked. The unlit room behind it is never enterable.
 static func build_supervisor(parent: Node3D) -> Node3D:
-	var door := Geo.group(parent, "SupervisorDoor", Vector3(0.0, 0.0, -6.0))
+	var door := Geo.group(parent, "SupervisorDoor", Vector3(SUPERVISOR_X, 0.0, -6.0))
 	Geo.add(door, Geo.quad(DOOR_WIDTH, GLASS_BOTTOM, Geo.TEX_STEEL, Geo.WHITE, 1.0, 0.0, "Panel"),
 		Vector3(0, GLASS_BOTTOM * 0.5, PANEL_Z))
 	Geo.add(door, Geo.quad(DOOR_WIDTH, DOOR_HEIGHT - GLASS_BOTTOM, Geo.TEX_FROSTED, Geo.WHITE, 1.0, 0.0, "Glass"),
@@ -37,7 +46,7 @@ static func build_supervisor(parent: Node3D) -> Node3D:
 ## Exit door: south wall at x = -6, steel, chrome handle on the room side, EXIT sign above.
 ## Locked except in Ending B (M10). The root is turned 180 degrees so +Z faces north.
 static func build_exit(parent: Node3D) -> Node3D:
-	var door := Geo.group(parent, "ExitDoor", Vector3(-6.0, 0.0, 6.0), Vector3(0, 180, 0))
+	var door := Geo.group(parent, "ExitDoor", Vector3(EXIT_X, 0.0, 6.0), Vector3(0, 180, 0))
 	Geo.add(door, Geo.quad(DOOR_WIDTH, DOOR_HEIGHT, Geo.TEX_STEEL, Geo.WHITE, 1.0, 0.0, "Panel"),
 		Vector3(0, DOOR_HEIGHT * 0.5, PANEL_Z))
 	_handle(door)
@@ -45,6 +54,10 @@ static func build_exit(parent: Node3D) -> Node3D:
 	Geo.add(door, Geo.quad(0.32, 0.12, sign_tex, Geo.WHITE, 0.0, 0.0, "Sign"),
 		Vector3(0, 2.45, PANEL_Z))
 	door.add_child(Geo.static_box(Vector3(DOOR_WIDTH, DOOR_HEIGHT, 0.04), Vector3(0, DOOR_HEIGHT * 0.5, 0), "Collision"))
+	# Beyond the doorway, just outside the south wall face (z 6.2): the unlit black box of spec
+	# 15.2 step 2, 1.2 x 2.1 x 1.0 m (#000000). It fills the opening from outside (QUESTION-39).
+	Geo.add(parent, Geo.solid(Vector3(1.2, DOOR_HEIGHT, 1.0), Color("#000000"), "ExitBeyond"),
+		Vector3(EXIT_X, DOOR_HEIGHT * 0.5, 6.7))
 	return door
 
 

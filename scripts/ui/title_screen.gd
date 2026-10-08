@@ -1,7 +1,9 @@
 extends CanvasLayer
 ## TitleScreen (spec 16.2): black background and one printed sheet with BEGIN,
 ## CONTINUE — {DAYNAME} (only when a save exists), SETTINGS and QUIT. BEGIN with a
-## save asks THIS WILL ERASE YOUR WEEK. with YES / NO. The title plays no audio.
+## save asks THIS WILL ERASE YOUR WEEK. with YES / NO, and NO is highlighted. SETTINGS
+## replaces the rows of this same sheet with the settings page (spec 16.3). The title
+## plays no audio.
 ##
 ## The owner listens for:
 ##   new_game_requested: start a new game (DayDirector.start_new_game), then the
@@ -15,7 +17,6 @@ const PaperMenu := preload("res://scripts/ui/paper_menu.gd")
 const SettingsPage := preload("res://scripts/ui/settings_page.gd")
 
 const SHEET_HEIGHT := 0.6
-const SHEET_ASPECT := 0.75
 const MAIN_KEYS := ["begin", "continue", "settings", "quit"]
 
 signal new_game_requested
@@ -23,7 +24,7 @@ signal continue_requested
 
 var _root: Control
 var _sheet: PaperMenu
-var _settings: Control
+var _settings: SettingsPage
 var _mode := "main"  # "main" or "erase"
 var _ids: Array = []  # option id for each option row
 var _sel := 0
@@ -46,7 +47,6 @@ func _ready() -> void:
 	_root.add_child(_sheet)
 	_settings = SettingsPage.new()
 	_settings.back_requested.connect(_on_settings_back)
-	_root.add_child(_settings)
 	get_viewport().size_changed.connect(_layout)
 	_layout()
 	var save = Engine.get_main_loop().root.get_node_or_null("SaveSystem")
@@ -59,13 +59,13 @@ func _ready() -> void:
 func show_title() -> void:
 	_mode = "main"
 	_sel = 0
-	_settings.visible = false
-	_sheet.visible = true
+	_settings.hide_page()
 	_build()
 	visible = true
 
 
 func hide_title() -> void:
+	_settings.hide_page()
 	visible = false
 
 
@@ -115,7 +115,7 @@ func _activate(option: int) -> void:
 			var save := _save()
 			if save != null and save.has_save():
 				_mode = "erase"
-				_sel = 0
+				_sel = 1  # NO is highlighted: a reflexive Enter must not erase the week
 				_build()
 			else:
 				new_game_requested.emit()
@@ -137,22 +137,26 @@ func _activate(option: int) -> void:
 
 
 func _show_settings() -> void:
-	_sheet.visible = false
-	_settings.show_page(1.0)
+	_settings.show_on(_sheet)
 
 
 func _on_settings_back() -> void:
-	_settings.visible = false
-	_sheet.visible = true
+	_settings.hide_page()
 	_build()
 
 
 func _on_hover(option: int) -> void:
+	if _settings.showing():
+		_settings.hovered(option)
+		return
 	_sel = option
 	_sheet.set_selected(option)
 
 
-func _on_click(option: int, _x_fraction: float) -> void:
+func _on_click(option: int, x_fraction: float) -> void:
+	if _settings.showing():
+		_settings.clicked(option, x_fraction)
+		return
 	_on_hover(option)
 	_activate(option)
 
@@ -160,7 +164,7 @@ func _on_click(option: int, _x_fraction: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible or not (event is InputEventKey) or not event.pressed or event.echo:
 		return
-	if _settings.visible:
+	if _settings.showing():
 		if _settings.key_pressed(event.keycode):
 			get_viewport().set_input_as_handled()
 		return
@@ -184,7 +188,7 @@ func _move(step: int) -> void:
 func _layout() -> void:
 	var vp := get_viewport().get_visible_rect().size
 	var h := vp.y * SHEET_HEIGHT
-	var w := h * SHEET_ASPECT
+	var w := h * PaperMenu.A4_ASPECT
 	_sheet.position = (vp - Vector2(w, h)) * 0.5
 	_sheet.size = Vector2(w, h)
 

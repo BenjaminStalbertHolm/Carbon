@@ -6,6 +6,8 @@ extends Node
 ##   m8_2a_apparition_seated.png  seated view: Desk 8's clerk hides the Desk 12 figure
 ##   m8_2_apparition.png  Day 3 after RO-3: the Desk 12 figure from a standing view, after the player looked away 2.5 s
 ##   m8_3_unison.png      Day 3 after F-3: unison typing clerks, looked at from Desk 4
+##   m8_4_supervisor_door.png  the north wall cut for the supervisor door, from the room, with the D4-U2 silhouette
+##   m8_5_exit_door.png   the south wall cut for the exit door, from the room (QUESTION-39)
 ## Dev-only and excluded from export (tests/*). The one-shot task_sent calls run on the
 ## first frame of their stage, not inside a time window.
 ## Run: xvfb-run -a -s "-screen 0 1280x1024x24" godot --path . res://tests/world/m8_shots.tscn -- --out=<dir>
@@ -25,6 +27,11 @@ const NORTH := Vector3(5.25, 1.15, -6.0)
 const LOOK_AWAY_S := 2.5
 ## Standing view over the Desk 8 clerk's head, so the Desk 12 figure is not hidden.
 const APP_STAND := Vector3(5.25, 1.90, 3.00)
+## Doorway views (QUESTION-39): the supervisor door from the room, and the exit door.
+const SUP_EYE := Vector3(0.0, 1.5, -4.2)
+const SUP_TARGET := Vector3(0.0, 1.5, -6.0)
+const EXIT_EYE := Vector3(-7.0, 1.5, 4.8)
+const EXIT_TARGET := Vector3(-6.0, 1.2, 6.0)
 
 var _out_dir := "/tmp"
 var _pipeline = null
@@ -118,6 +125,23 @@ func _process(delta: float) -> void:
 				_shot("m8_3_unison.png")
 				_log.append("unison: %s flag=%s any_clerk_looked=%s" % [str(_status("D3-U2")), str(_gs.flags.get("unison_typing", false)), str(_any_looked())])
 				_checks()
+				_next(5)
+		5:
+			# The supervisor doorway from the room, with the D4-U2 silhouette applied (QUESTION-40).
+			if _once():
+				_un._op_d4_u2({})
+				_camera.global_position = SUP_EYE
+				_camera.look_at(SUP_TARGET, Vector3.UP)
+			if _t >= 0.6:
+				_shot("m8_4_supervisor_door.png")
+				_next(6)
+		6:
+			# The exit doorway from the room (QUESTION-39).
+			if _once():
+				_camera.global_position = EXIT_EYE
+				_camera.look_at(EXIT_TARGET, Vector3.UP)
+			if _t >= 0.6:
+				_shot("m8_5_exit_door.png")
 				for l in _log:
 					print("M8SHOTS: ", l)
 				get_tree().quit(0)
@@ -166,7 +190,8 @@ func _checks() -> void:
 	_check("D4-U2 silhouette added under the supervisor door", sil != null and sil.mesh != null)
 	if sil != null:
 		var aabb: AABB = sil.mesh.get_aabb()
-		_check("D4-U2 silhouette fits a 0.45 x 0.95 m quad", is_equal_approx(aabb.size.x, 0.45) and is_equal_approx(aabb.size.y, 0.95))
+		# QUESTION-40: the outline is 0.82 m tall, its bottom on the bottom of the 0.95 m quad.
+		_check("D4-U2 silhouette outline is 0.45 x 0.82 m, bottom at the quad's bottom", is_equal_approx(aabb.size.x, 0.45) and is_equal_approx(aabb.size.y, 0.82) and is_equal_approx(aabb.position.y, 0.0))
 	# Unison: every typing clerk shows the same hand pose.
 	var poses := []
 	for d in [1, 2, 3, 5, 6, 7, 8, 9, 10, 11]:

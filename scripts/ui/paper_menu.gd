@@ -1,23 +1,27 @@
 extends Control
 ## PaperMenu: one printed paper sheet with a column of rows (spec 16.2, 16.3).
-## Option rows are selectable: the selected one starts with "> ", the others with
-## two spaces, so the text never shifts. Rows that are not options print as they
-## are. The owner positions and sizes this Control, and handles the keys. Mouse
-## hover and clicks come back through row_hovered and row_clicked.
+## Option rows are selectable. Each option row has a marker column as wide as "> ": the
+## selected row draws "> " in it, the others draw nothing, so every option's text starts
+## at the same x and does not shift. Rows that are not options print as they are, flush
+## left. The owner positions and sizes this Control (every sheet keeps A4_ASPECT), and
+## handles the keys. Mouse hover and clicks come back through row_hovered and row_clicked.
 
 const PAPER := preload("res://assets/textures/paper.png")
 const FONT := preload("res://assets/fonts/SpecialElite-Regular.ttf")
 const INK := Color("#1C1B19")
 const PRINT_SIZE := 22
 const SELECTED_PREFIX := "> "
-const PLAIN_PREFIX := "  "
+## Document page ratio, 768 x 1088 px (spec 6.5). Every paper sheet is sized to it.
+const A4_ASPECT := 768.0 / 1088.0
 
 signal row_hovered(option: int)
 signal row_clicked(option: int, x_fraction: float)
 
 var _margin: MarginContainer
 var _box: VBoxContainer
-var _option_labels: Array = []
+var _option_rows: Array = []  # HBoxContainer per option: marker column, then text
+var _option_labels: Array = []  # text Label per option
+var _option_markers: Array = []  # marker Label per option
 var _option_texts: Array = []
 var _selected := 0
 
@@ -54,28 +58,36 @@ func set_rows(rows: Array) -> void:
 	for child in _box.get_children():
 		_box.remove_child(child)
 		child.queue_free()
+	_option_rows = []
 	_option_labels = []
+	_option_markers = []
 	_option_texts = []
 	for row in rows:
 		var text := String(row.text)
-		var label := Label.new()
-		label.add_theme_font_override("font", FONT)
-		label.add_theme_font_size_override("font_size", PRINT_SIZE)
-		label.add_theme_color_override("font_color", INK)
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		label.custom_minimum_size = Vector2(0, FONT.get_height(PRINT_SIZE))
 		if bool(row.get("option", false)):
 			var index := _option_texts.size()
 			_option_texts.append(text)
+			var marker := _new_label(false)
+			marker.custom_minimum_size.x = _marker_width()
+			marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var label := _new_label(true)
+			label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var line := HBoxContainer.new()
+			line.mouse_filter = Control.MOUSE_FILTER_STOP
+			line.add_child(marker)
+			line.add_child(label)
+			line.mouse_entered.connect(_on_row_entered.bind(index))
+			line.gui_input.connect(_on_row_input.bind(index))
+			_option_rows.append(line)
 			_option_labels.append(label)
-			label.mouse_filter = Control.MOUSE_FILTER_STOP
-			label.mouse_entered.connect(_on_row_entered.bind(index))
-			label.gui_input.connect(_on_row_input.bind(index))
+			_option_markers.append(marker)
+			_box.add_child(line)
 		else:
+			var label := _new_label(true)
 			label.text = text
 			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_box.add_child(label)
+			_box.add_child(label)
 	_refresh()
 
 
@@ -94,10 +106,25 @@ func option_count() -> int:
 	return _option_texts.size()
 
 
+func _new_label(wrap: bool) -> Label:
+	var label := Label.new()
+	label.add_theme_font_override("font", FONT)
+	label.add_theme_font_size_override("font_size", PRINT_SIZE)
+	label.add_theme_color_override("font_color", INK)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if wrap else TextServer.AUTOWRAP_OFF
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	label.custom_minimum_size = Vector2(0, FONT.get_height(PRINT_SIZE))
+	return label
+
+
+func _marker_width() -> float:
+	return FONT.get_string_size(SELECTED_PREFIX, HORIZONTAL_ALIGNMENT_LEFT, -1, PRINT_SIZE).x
+
+
 func _refresh() -> void:
 	for i in range(_option_labels.size()):
-		var prefix: String = SELECTED_PREFIX if i == _selected else PLAIN_PREFIX
-		_option_labels[i].text = prefix + String(_option_texts[i])
+		_option_markers[i].text = SELECTED_PREFIX if i == _selected else ""
+		_option_labels[i].text = String(_option_texts[i])
 
 
 func _on_row_entered(index: int) -> void:
@@ -106,7 +133,7 @@ func _on_row_entered(index: int) -> void:
 
 func _on_row_input(event: InputEvent, index: int) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var label: Label = _option_labels[index]
-		var width := maxf(1.0, label.size.x)
+		var line: Control = _option_rows[index]
+		var width := maxf(1.0, line.size.x)
 		row_clicked.emit(index, clampf(event.position.x / width, 0.0, 1.0))
 		accept_event()

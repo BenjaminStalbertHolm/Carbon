@@ -43,6 +43,7 @@ func _run() -> void:
 	_check_clerks(hall)
 	_check_lighting(hall)
 	_check_room(hall)
+	_check_doorways(hall)
 	_check_clock_and_boards(hall)
 	var tris := _count_triangles(hall)
 	print("TRIANGLES: %d" % tris)
@@ -194,6 +195,80 @@ func _check_room(hall: Node) -> void:
 	if exit_door != null:
 		_expect(exit_door.global_transform.basis.z.is_equal_approx(Vector3(0, 0, -1)), "ExitDoor faces the room (north)")
 	_expect(hall.get_node_or_null("SupervisorRoom") != null, "unlit supervisor room box exists")
+
+
+## QUESTION-39 (spec 6.1, 15.2): the north and south walls are cut for the two doorways. No
+## wall mesh stands in an opening, the walls alone leave each opening open, and the collision
+## blocks every point of each wall while the doors are closed. The exit doorway is filled
+## from outside by the black box of spec 15.2.
+func _check_doorways(hall: Node) -> void:
+	var doorways := [
+		{"wall": "WallNorth", "door": "SupervisorDoor", "centre": 0.0, "z": -6.01, "zone": AABB(Vector3(-0.5, 0.0, -6.2), Vector3(1.0, 2.1, 0.2))},
+		{"wall": "WallSouth", "door": "ExitDoor", "centre": -6.0, "z": 6.01, "zone": AABB(Vector3(-6.5, 0.0, 6.0), Vector3(1.0, 2.1, 0.2))},
+	]
+	for d in doorways:
+		var wall := hall.get_node_or_null(d.wall) as Node3D
+		var door := hall.get_node_or_null(d.door) as Node3D
+		_expect(wall != null and door != null, "%s and %s exist" % [d.wall, d.door])
+		if wall == null or door == null:
+			continue
+		var zone: AABB = (d.zone as AABB).grow(-0.002)
+		var clear := true
+		for mi in _meshes(wall, []):
+			if (mi.global_transform * mi.get_aabb()).intersects(zone):
+				clear = false
+		_expect(clear, "%s has no wall mesh in its doorway" % d.wall)
+		var wall_shapes := _box_shapes(wall, [])
+		var all_shapes: Array = wall_shapes + _box_shapes(door, [])
+		var gap_open := true
+		var all_blocked := true
+		for i in range(180):
+			var x := -8.95 + 0.1 * float(i)
+			for j in range(32):
+				var p := Vector3(x, 0.05 + 0.1 * float(j), float(d.z))
+				var in_gap: bool = absf(x - float(d.centre)) < 0.5 and p.y < 2.1
+				if in_gap and _inside_any(p, wall_shapes):
+					gap_open = false
+				if not _inside_any(p, all_shapes):
+					all_blocked = false
+		_expect(gap_open, "%s: the walls alone leave the doorway open" % d.wall)
+		_expect(all_blocked, "%s: collision blocks the whole wall while the door is closed" % d.wall)
+	var beyond := hall.get_node_or_null("ExitBeyond") as MeshInstance3D
+	_expect(beyond != null and _vnear(beyond.global_position, Vector3(-6.0, 1.05, 6.7))
+		and beyond.get_aabb().size.is_equal_approx(Vector3(1.2, 2.1, 1.0)),
+		"ExitBeyond: the 1.2 x 2.1 x 1.0 m box sits beyond the exit doorway")
+	var beyond_mat = beyond.material_override if beyond != null else null
+	_expect(beyond_mat is ShaderMaterial and (beyond_mat as ShaderMaterial).get_shader_parameter("albedo_color") == Color(0, 0, 0, 1),
+		"ExitBeyond is black (#000000)")
+
+
+## Every MeshInstance3D under node, appended to out.
+func _meshes(node: Node, out: Array) -> Array:
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+		out.append(node)
+	for c in node.get_children():
+		_meshes(c, out)
+	return out
+
+
+## Every box collision shape under node, as [global transform, box size], appended to out.
+func _box_shapes(node: Node, out: Array) -> Array:
+	if node is CollisionShape3D and (node as CollisionShape3D).shape is BoxShape3D:
+		var size := ((node as CollisionShape3D).shape as BoxShape3D).size
+		out.append([(node as Node3D).global_transform, size])
+	for c in node.get_children():
+		_box_shapes(c, out)
+	return out
+
+
+## True when point p lies inside any of the box shapes ([transform, size] pairs).
+func _inside_any(p: Vector3, shapes: Array) -> bool:
+	for s in shapes:
+		var local: Vector3 = (s[0] as Transform3D).affine_inverse() * p
+		var half: Vector3 = (s[1] as Vector3) * 0.5
+		if absf(local.x) <= half.x and absf(local.y) <= half.y and absf(local.z) <= half.z:
+			return true
+	return false
 
 
 func _check_clock_and_boards(hall: Node) -> void:
