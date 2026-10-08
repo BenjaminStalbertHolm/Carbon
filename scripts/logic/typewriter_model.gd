@@ -57,6 +57,7 @@ var _run_text := ""
 var _run_cells: Array = []  # Array of [line, col] for the current letter run
 var _pending: Array = []  # Array of {at: float, op: String, args: Dictionary}
 var _ghost_queue: Array = []  # Array of {op: "type", ch} or {op: "x", line, col}
+var _typed_cells := {}  # "line:col" -> [line, col], cells the player typed since the last take_typed_cells()
 var _ghost_running := false
 var _ghost_next_at := 0.0
 var _ghost_prev := ""
@@ -77,6 +78,7 @@ func is_locked(now: float) -> bool:
 
 ## Loads a sheet (spec 7.5). The carriage starts at the first field's first
 ## cell for forms, and at (0, 0) otherwise. carbon_doc may be {}.
+## Correction fluid locks belong to the sheet they were used on (spec 7.6), so none carry over.
 func load_sheet(doc: Dictionary, carbon_doc: Dictionary) -> void:
 	original = doc
 	carbon = carbon_doc
@@ -92,6 +94,8 @@ func load_sheet(doc: Dictionary, carbon_doc: Dictionary) -> void:
 	_pending = []
 	_ghost_queue = []
 	_ghost_running = false
+	_typed_cells = {}
+	_cell_lock.clear()
 
 
 ## Removes the sheet from the machine and returns the original document.
@@ -104,6 +108,7 @@ func unload() -> Dictionary:
 	_pending = []
 	_ghost_queue = []
 	_ghost_running = false
+	_typed_cells = {}
 	return d
 
 
@@ -242,6 +247,15 @@ func enqueue_ghost_x(cells: Array) -> void:
 		_ghost_queue.append({"op": "x", "line": int(c[0]), "col": int(c[1])})
 
 
+## The cells the player has typed into since the previous call, as [line, col] arrays,
+## and forgets them (spec 10.3: the next X-out pass covers only those). Ghost writes and
+## ghost X glyphs are never recorded here.
+func take_typed_cells() -> Array:
+	var out: Array = _typed_cells.values()
+	_typed_cells = {}
+	return out
+
+
 func ghost_set_running(running: bool, now: float) -> void:
 	if running and not _ghost_running:
 		_ghost_next_at = now + _ghost_delay_for_next()
@@ -324,6 +338,8 @@ func _write(ch: String, now: float, ghost: bool) -> void:
 		if cc.g.size() < DocModel.MAX_GLYPHS:
 			var copy := DocModel.make_glyph(ch, rng, "carbon")
 			cc.g.append(copy)
+	if not ghost:
+		_typed_cells[DocModel.cell_key(line, col)] = [line, col]
 	_emit({"t": "key", "ch": ch, "ghost": ghost})
 	if col == BELL_COLUMN:
 		_emit({"t": "bell", "ghost": ghost})

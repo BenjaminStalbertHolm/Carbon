@@ -5,6 +5,7 @@ extends SceneTree
 const DocModel := preload("res://scripts/logic/doc_model.gd")
 const CadenceModel := preload("res://scripts/logic/cadence_model.gd")
 const TypewriterModel := preload("res://scripts/logic/typewriter_model.gd")
+const GhostTyper := preload("res://scripts/world/ghost_typer.gd")
 
 var _failures := 0
 var _ran := false
@@ -43,6 +44,123 @@ func _new_model(seed_value: int) -> Array:
 	var cad := CadenceModel.new()
 	var tw := TypewriterModel.new(cad, rng)
 	return [tw, cad, rng]
+
+
+## One ghost pass (spec 10.3): re-arm with the typewriter in view, trigger on 6 s unseen,
+## tick the model until the ghost queue drains, then one update to finish the line.
+## Returns the cells X-ed (reading order), the ghost-typed letters, and the clock.
+func _ghost_pass(model: TypewriterModel, core: GhostTyper.Core, now: float) -> Dictionary:
+	core.update(0.1, now, 0.0, 1.0, true, false)
+	core.update(0.1, now + 100.0, 6.0, 1.0, false, false)
+	var xs: Array = []
+	var text := ""
+	var last := [-1, -1]
+	var t := now + 100.0
+	var guard := 0
+	while model.ghost_pending() and guard < 100000:
+		t += 10.0
+		model.tick(t)
+		for ev in model.take_events():
+			if ev.t == "carriage":
+				last = [int(ev.line), int(ev.col)]
+			elif ev.t == "key" and ev.ch == "X":
+				xs.append(last)
+			elif ev.t == "key":
+				text += String(ev.ch)
+		guard += 1
+	core.update(0.016, t + 10.0, 0.0, 1.0, false, false)
+	return {"xs": xs, "text": text, "now": t + 10.0}
+
+
+## Ghost X-outs (spec 10.3, QUESTION-42): each pass X-s the cells the player typed since
+## the previous pass, including cells X-ed before, and never the ghost's own X glyphs.
+func _check_ghost_xouts() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42
+	var model := TypewriterModel.new(CadenceModel.new(), rng)
+	var sheet := DocModel.new_doc("GX", "ghost")
+	sheet.pages.append(DocModel.new_page())
+	model.load_sheet(sheet, {})
+	var core := GhostTyper.Core.new()
+	core.model = model
+	core.set_day(3, ["ONE", "TWO", "THREE", "FOUR"], 0)
+
+	# The player types CAT on line 0, columns 0 to 2.
+	core.set_typing_view(true)
+	for ch in "CAT":
+		model.type_key(ch, 100.0)
+	core.set_typing_view(false)
+	model.take_events()
+	var p1 := _ghost_pass(model, core, 1000.0)
+	_check_eq(p1.xs, [[0, 0], [0, 1], [0, 2]], "ghost X-outs: the first pass X-s the three typed cells in reading order")
+	_check_eq(p1.text, "ONE", "ghost X-outs: the line follows the X-outs")
+
+	# The ghost's own X glyphs are not player typing: a pass with no player typing adds no X.
+	var p2 := _ghost_pass(model, core, p1.now)
+	_check_eq(p2.xs, [], "ghost X-outs: the ghost's own X glyphs do not trigger a re-X on the next pass")
+	_check_eq(p2.text, "TWO", "ghost X-outs: a pass with no player typing types only its line")
+
+	# The player types into (0, 0) again: that cell is X-ed again on the next pass, and only it.
+	core.set_typing_view(true)
+	model.line = 0
+	model.col = 0
+	model.type_key("S", p2.now + 10.0)
+	core.set_typing_view(false)
+	model.take_events()
+	var p3 := _ghost_pass(model, core, p2.now + 20.0)
+	_check_eq(p3.xs, [[0, 0]], "ghost X-outs: typing into an X-ed cell again makes it eligible on the next pass")
+	_check_eq(p3.text, "THREE", "ghost X-outs: the line after the re-X follows")
+
+	# Two presses into one cell give one X-out on the next pass.
+	core.set_typing_view(true)
+	model.line = 0
+	model.col = 2
+	model.type_key("Q", p3.now + 10.0)
+	model.col = 2
+	model.type_key("R", p3.now + 20.0)
+	core.set_typing_view(false)
+	model.take_events()
+	var p4 := _ghost_pass(model, core, p3.now + 30.0)
+	_check_eq(p4.xs, [[0, 2]], "ghost X-outs: several presses into one cell give one X on the next pass")
+	_check_eq(p4.text, "FOUR", "ghost X-outs: the last line types after its X-out")
+
+
+## Opening the typing view stops the ghost at once, so a tick before the next update
+## writes no ghost glyph while the player is typing.
+func _check_ghost_stops_on_typing() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9
+	var model := TypewriterModel.new(CadenceModel.new(), rng)
+	var sheet := DocModel.new_doc("GS", "ghost")
+	sheet.pages.append(DocModel.new_page())
+	model.load_sheet(sheet, {})
+	var core := GhostTyper.Core.new()
+	core.model = model
+	core.set_day(3, ["ZZ"], 0)
+	core.update(0.1, 0.0, 6.0, 1.0, false, false)
+	core.set_typing_view(true)
+	model.tick(10000.0)
+	var ghost_keys := 0
+	for ev in model.take_events():
+		if ev.t == "key" and bool(ev.ghost):
+			ghost_keys += 1
+	_check(ghost_keys == 0, "ghost: opening the typing view stops ghost writes before the next update")
+
+
+## Correction fluid lock (spec 7.6): the lock belongs to its sheet and is cleared on load.
+func _check_lock_per_sheet() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var model := TypewriterModel.new(CadenceModel.new(), rng)
+	model.load_sheet(_sheet([]), {})
+	model.fluid_at(0, 0, 1000.0)
+	model.load_sheet(_sheet([]), {})
+	model.type_key("A", 1500.0)
+	_check(model.col == 1 and DocModel.cell_char(model.page, 0, 0) == "A", "fluid lock: a new sheet is not refused by the lock the previous sheet left on a cell")
+	model.load_sheet(_sheet([]), {})
+	model.fluid_at(0, 0, 1000.0)
+	model.type_key("B", 1500.0)
+	_check(model.col == 0, "fluid lock: on the same sheet the cell still refuses typing for 2 s")
 
 
 func _run() -> void:
@@ -206,6 +324,10 @@ func _run() -> void:
 	tw7.col = int(f7.col)
 	tw7.type_key("Q", 0.0)
 	_check(String(form7.pages[0].cells[DocModel.cell_key(int(f7.line), int(f7.col))].g[-1].c) == TypewriterModel.BAR_GLYPH, "with H. VANCE redacted, typed cells become solid bars on the original")
+
+	_check_lock_per_sheet()
+	_check_ghost_xouts()
+	_check_ghost_stops_on_typing()
 
 	print("RESULT: %s, %d failure(s)" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	quit(1 if _failures > 0 else 0)

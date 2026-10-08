@@ -54,9 +54,6 @@ class Core:
 	var running := false
 	var line_active := false
 	var typing_view := false
-	var player_cells := {}  # "line:col" -> [line, col], cells the player typed on the ghost sheet
-	var xed := {}  # "line:col" -> true, cells already overstruck with X
-	var counts := {}  # "line:col" -> glyph count seen last scan
 	var sheet_id := ""
 	var trig := Trigger.new()
 	var on_line_finished := Callable()
@@ -67,9 +64,11 @@ class Core:
 		done = done_count
 		line_active = false
 
+	## Opening the typing view stops ghost writes at once, so no ghost glyph can land while
+	## the player types, even before the next update.
 	func set_typing_view(on: bool) -> void:
-		if on and not typing_view and _loaded_ghost():
-			_scan(false)
+		if on and not typing_view:
+			_stop(float(Time.get_ticks_msec()))
 		typing_view = on
 
 	## One frame. delta in seconds, now in ms. unseen and distance come from Gaze.
@@ -79,7 +78,6 @@ class Core:
 			running = false
 			return
 		_check_sheet()
-		_scan(typing_view)
 		if typing_view:
 			_stop(now)
 			return
@@ -106,35 +104,18 @@ class Core:
 		var sid := String(model.original.get("id", ""))
 		if sid != sheet_id:
 			sheet_id = sid
-			counts.clear()
-			player_cells.clear()
-			xed.clear()
 			trig.latched = false
 			line_active = false
 			running = false
 
-	## Records the cells whose glyph count went up while the typing view was open. Glyphs
-	## that appear while it is closed are ghost-written and are only counted, not recorded.
-	func _scan(typing: bool) -> void:
-		var cells: Dictionary = model.page.get("cells", {})
-		for k in cells:
-			var n: int = cells[k]["g"].size()
-			var prev: int = int(counts.get(k, 0))
-			if n > prev and typing and not player_cells.has(k):
-				var parts := String(k).split(":")
-				player_cells[k] = [int(parts[0]), int(parts[1])]
-			counts[k] = n
-
+	## One X-out pass (spec 10.3, QUESTION-42), queued ahead of the next line: an X over each
+	## cell the player typed since the previous pass, in reading order. The model records
+	## player keys only, so ghost writes and ghost X glyphs are never player typing.
 	func _enqueue_line(_now: float) -> void:
-		var cells: Array = []
-		for k in player_cells:
-			if not xed.has(k):
-				cells.append(player_cells[k])
+		var cells: Array = model.take_typed_cells()
 		cells.sort_custom(func(a, b): return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
 		if not cells.is_empty():
 			model.enqueue_ghost_x(cells)
-			for c in cells:
-				xed["%d:%d" % [c[0], c[1]]] = true
 		model.enqueue_ghost_text(String(lines[done]) + "\n")
 		line_active = true
 
