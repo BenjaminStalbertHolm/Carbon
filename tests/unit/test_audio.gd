@@ -46,12 +46,20 @@ var _problems := 0
 var _exempt_problems := 0
 var _ran := false
 var _ad
+var _holder: Node3D
+var _frames_left := -1
 
 
 func _process(_delta: float) -> bool:
 	if not _ran:
 		_ran = true
 		_run_checks()
+		_frames_left = 10
+	elif _frames_left > 0:
+		_frames_left -= 1
+	elif _frames_left == 0:
+		_frames_left = -1
+		_finish()
 	return false
 
 
@@ -66,6 +74,14 @@ func _run_checks() -> void:
 	var streams := _check_loads()
 	_check_rules(streams)
 	_check_director()
+
+
+## Runs a few frames after the checks so the audio thread releases the stopped playbacks,
+## then frees the test's nodes and prints the summary.
+func _finish() -> void:
+	get_root().remove_child(_ad)
+	_ad.free()
+	_holder.free()
 	print("AUDIO: %d files, %d Rule A/B problems (%d exempt, %d not exempt)" % [
 		AUDIO.size(), _problems, _exempt_problems, _problems - _exempt_problems])
 	print("RESULT: %s, %d failure(s)" % ["PASS" if _failures == 0 else "FAIL", _failures])
@@ -210,6 +226,4 @@ func _check_director() -> void:
 	_ad.stop_bed("vent_shepard")
 	for p in holder.get_children():
 		p.stop()
-	holder.free()
-	get_root().remove_child(_ad)
-	_ad.free()
+	_holder = holder
