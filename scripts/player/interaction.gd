@@ -42,6 +42,7 @@ var _hand_kind := ""
 var _hand_id := ""
 var _hand_origin := ""
 var _read_from_inbox := false
+var _read_opened_id := ""  # the inbox item the read view opened on (QUESTION-52)
 var _pressed := false
 var _press_action := ""
 var _press_node = null
@@ -131,22 +132,24 @@ func hand_release(animate: bool = false) -> String:
 
 
 ## Right-click in free view (spec 6.4): a document goes back to where it came from, and the
-## item goes back to its place. A sheet with no origin stays in the hand (see QUESTIONS_FOR_OPUS).
+## item goes back to its place. A sheet with no origin (blank or ejected) goes on top of the
+## read stack (QUESTION-54).
 func dispatch_right_click() -> void:
 	if _hand_kind == "":
 		return
 	if _hand_kind == "document":
-		# TODO(QUESTION): spec 6.4 names a home only for items taken from a place. A blank or
-		# ejected sheet has none, so it stays in the hand (neutral placeholder).
-		if _hand_origin == "":
-			return
-		_gs().place(_hand_id, _hand_origin)
+		_gs().place(_hand_id, _document_home())
 	hand_release(true)
+
+
+## Where a held document goes back to: its origin, or the read stack when it has none (QUESTION-54).
+func _document_home() -> String:
+	return _hand_origin if _hand_origin != "" else "read_stack"
 
 
 func _home_action() -> String:
 	if _hand_kind == "document":
-		return _hand_origin
+		return _document_home()
 	return _hand_kind
 
 
@@ -197,7 +200,7 @@ func dispatch_click(action: String, node: Node3D = null, hit_position: Vector3 =
 
 
 ## Runs the action of a hold (spec 6.4): picks up the top document of inbox, read stack or carbon
-## spot. A hold on the carbon spot is not a pick-up while the lower drawer is open (filing).
+## spot. A hold on the carbon spot picks up the top carbon even with the lower drawer open (QUESTION-55).
 func dispatch_hold(action: String, node: Node3D = null, hit_position: Vector3 = Vector3.ZERO) -> void:
 	if not _allowed(action) or _blocked():
 		return
@@ -211,8 +214,6 @@ func dispatch_hold(action: String, node: Node3D = null, hit_position: Vector3 = 
 				_pick_top_doc("read_stack")
 		"carbon_spot":
 			if _hand_kind != "" or carbon_view == null:
-				return
-			if desk != null and desk.drawer_open("lower"):
 				return
 			var id: String = carbon_view.pick_up_top_carbon()
 			if id != "":
@@ -326,15 +327,20 @@ func _open_read(docs: Array, index: int, mode: String, from_inbox: bool) -> void
 	if controller == null or not controller.has_method("open_read_view"):
 		return
 	_read_from_inbox = from_inbox
+	if from_inbox and not docs.is_empty():
+		_read_opened_id = String(docs[clampi(index, 0, docs.size() - 1)].id)
 	controller.open_read_view(docs, index, mode)
 
 
-## Closing read view (spec 6.4): the inbox item on show moves to the read stack.
-func _on_read_view_closed(doc_id: String) -> void:
+## Closing read view (spec 6.4, QUESTION-52): the inbox item the view opened on moves to the read
+## stack, even if the player turned to other pages.
+func _on_read_view_closed(_doc_id: String) -> void:
 	var from_inbox := _read_from_inbox
+	var opened := _read_opened_id
 	_read_from_inbox = false
-	if from_inbox and doc_id != "" and _gs().location_of(doc_id) == "inbox":
-		_gs().place(doc_id, "read_stack")
+	_read_opened_id = ""
+	if from_inbox and opened != "" and _gs().location_of(opened) == "inbox":
+		_gs().place(opened, "read_stack")
 
 
 # --- Raw input -------------------------------------------------------------------------

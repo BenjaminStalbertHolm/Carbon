@@ -151,8 +151,17 @@ func _checks_inbox_and_read_stack() -> void:
 	_check(_main.interaction.hand_id() == "M3-TEST-A", "inbox hold picks up the top item")
 	_main.interaction.dispatch_right_click()
 	_check(_gs.location_of("M3-TEST-A") == "inbox" and _main.interaction.hand_kind() == "", "right-click returns a picked-up inbox item to the inbox")
+	# QUESTION-52: the item the view opened on moves, even after the player turns to another page.
+	_add_doc("M3-TEST-C", "inbox")
+	_add_doc("M3-TEST-D", "inbox")
+	_main.interaction.dispatch_click("inbox")
+	_main.read_view.step(-1)
+	_close_read()
+	_check(_gs.location_of("M3-TEST-D") == "read_stack" and _gs.location_of("M3-TEST-C") == "inbox", "closing after turning the page moves the item the view opened on (QUESTION-52)")
 	_gs.remove_doc("M3-TEST-A")
 	_gs.remove_doc("M3-TEST-B")
+	_gs.remove_doc("M3-TEST-C")
+	_gs.remove_doc("M3-TEST-D")
 	_check(id == "M3-TEST-A", "inbox fixtures cleaned up")
 
 
@@ -188,6 +197,14 @@ func _checks_blank_tray_and_hand() -> void:
 	_check(_main.interaction.hand_kind() == "fluid", "correction fluid is picked up")
 	_main.interaction.dispatch_right_click()
 	_check(_main.interaction.hand_kind() == "", "right-click returns the fluid")
+	# QUESTION-54: a sheet with no origin (blank or ejected) goes on top of the read stack.
+	var tray_then := int(_gs.tray_count)
+	_main.interaction.dispatch_click("blank_tray")
+	var blank_id: String = _main.interaction.hand_id()
+	_main.interaction.dispatch_right_click()
+	_check(_gs.location_of(blank_id) == "read_stack" and _gs.loc.read_stack.back() == blank_id and _main.interaction.hand_kind() == "", "a blank sheet with no origin goes on top of the read stack when put back (QUESTION-54)")
+	_gs.remove_doc(blank_id)
+	_gs.tray_count = tray_then
 	await process_frame
 
 
@@ -248,6 +265,13 @@ func _checks_drawers_and_notebook() -> void:
 	var filed: int = _main.carbon_view.carbon_spot_clicked()
 	_check(filed == 1 and _gs.location_of("M3-TEST-CARBON") == "drawer", "lower drawer open: the carbon spot files its carbons")
 	_gs.remove_doc("M3-TEST-CARBON")
+	# QUESTION-55: with the lower drawer open, a hold on the carbon spot still picks up the top carbon.
+	_add_doc("M3-TEST-CARBON-HOLD", "carbon_spot", "carbon")
+	_main.interaction.dispatch_hold("carbon_spot")
+	_check(_main.interaction.hand_id() == "M3-TEST-CARBON-HOLD" and _gs.location_of("M3-TEST-CARBON-HOLD") == "hand", "lower drawer open: a hold on the carbon spot picks up the top carbon (QUESTION-55)")
+	_main.interaction.dispatch_right_click()
+	_check(_gs.location_of("M3-TEST-CARBON-HOLD") == "carbon_spot", "the carbon goes back to the carbon spot")
+	_gs.remove_doc("M3-TEST-CARBON-HOLD")
 	_gs.loc.drawer.clear()
 	_main.interaction.dispatch_click("drawer_lower")
 	await _wait(0.5)

@@ -6,8 +6,7 @@ extends Node
 ## The click sound is played here, on the DayDirector.lamp_click signal, so it is not played twice.
 
 const LIGHT_ENERGY := 0.8
-# TODO(QUESTION): spec 8.12 says the shade emission goes off with the lamp but gives no level.
-# Placeholder: 1.0, the same as the lit fluorescent tubes.
+# Spec 8.12 gives no shade emission level. 1.0 while lit, as the lit fluorescent tubes (QUESTION-57).
 const SHADE_EMISSION_ON := 1.0
 const SHADE_EMISSION_OFF := 0.0
 ## Scripted or player click: played at the file's own level (gain 0 dB, QUESTION-29). The file

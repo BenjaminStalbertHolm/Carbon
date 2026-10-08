@@ -471,3 +471,66 @@ Options you see: A: clear the lock on load_sheet / B: keep it
 
 Decision (opus-agent): A — clear `_cell_lock` in `load_sheet`. The lock belongs to a blob on a specific sheet (§7.6), so it must not carry over to another sheet. Reloading the same sheet within 2 s is a negligible edge case, and clearing the lock there is harmless.
 Placeholder in code/config: does not match. In `scripts/logic/typewriter_model.gd` `load_sheet()`, add `_cell_lock.clear()`, and add a unit test in `tests/unit/test_typewriter.gd`.
+
+## QUESTION-52
+Section: §6.4 (closing the inbox read view)
+Context: The spec says the item moves to the read stack when the read view closes. The current build moves the item on show at close, which may differ from the one the view opened on if the player paged.
+Question: Which item moves to the read stack?
+Options you see: A: the item on show at close / B: the item the view opened on / C: something else
+
+Decision (opus-agent): B — the item the view opened on. §6.4: "Opens read view on the top unread item. Closing read view moves *that* item to the read stack." Any other inbox items the player paged to stay in the inbox.
+Placeholder in code/config: does not match. Record the opened item's id when the inbox read view opens, and move that id on close. Change `scripts/player/interaction.gd` and/or `scripts/desk/desk4_items.gd`, wherever the inbox close handler lives.
+
+## QUESTION-53
+Section: §6.3 (read view on a held document)
+Context: The spec gives no click target for a held document. Current build: a left-click with nothing under the screen centre opens the held document in read view.
+Question: How does the player open a held document?
+Options you see: A: as built / B: no action on a left-click with nothing under the centre / C: something else
+
+Decision (opus-agent): A — as built. §6.3 lists "a document held in hand" as a read-view entry, and the held quad sits in the lower-right, where the centre raycast cannot reach it. So a left-click that hits no interactable is the only workable target. Interactables under the centre (tube, typewriter, read stack, copyholder) still take priority. B would make the §6.3 entry unreachable.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-54
+Section: §6.4 (right-click put-back for items with no origin)
+Context: A sheet with no origin (a blank sheet, or one ejected from the typewriter) stays in hand.
+Question: Where does a right-click put such a sheet?
+Options you see: A: stays in hand / B: goes to the read stack / C: goes to the inbox / D: something else
+
+Decision (opus-agent): B — a held document with no other home goes on top of the read stack. §6.4 says a right-click in free view "returns the held item to its home position", so A breaks the rule. The read stack is the documents' general resting place (§6.4 lets the player put any held document there), and §15.1 and §15.3 eject papers there too. C would make a sheet look like a new arrival. A sheet + carbon set goes to the read stack as one item, with no carbon separation (that happens only on typewriter removal, §7.7).
+Placeholder in code/config: does not match. In `scripts/player/interaction.gd`, the put-back path places origin-less documents on the read stack (end of the array, QUESTION-8).
+
+## QUESTION-55
+Section: §6.4 with §8.5 (carbon spot while the lower drawer is open)
+Context: Current build: a click files all carbons and a hold does not pick anything up.
+Question: Does a hold pick up the top carbon while the drawer is open?
+Options you see: A: as built / B: a hold also picks up the top carbon / C: something else
+
+Decision (opus-agent): B — a click files all carbons (§6.4 lower drawer row). A 0.4 s hold still picks up the top carbon (§8.5 hold-click, QUESTION-49). The drawer rule replaces only what a click does ("clicking ... files ... instead of reading them"), not the hold.
+Placeholder in code/config: does not match. In the carbon-spot handler in `scripts/player/interaction.gd` (or `scripts/desk/desk4_items.gd`), check for a hold before the drawer-open filing branch.
+
+## QUESTION-56
+Section: §6.2 (pitch after sitting down)
+Context: Current build keeps the pitch, clamped to −60 to +40, and the fade-in starts at −10 per §13.1.
+Question: Should pitch reset on sit-down?
+Options you see: A: as built / B: reset pitch to the seated default on sit-down / C: something else
+
+Decision (opus-agent): A — as built. §6.2 says the camera moves "to the seated pose, yaw north" and names only yaw. Keeping the pitch and clamping it to the seated range invents nothing. The −10° pitch belongs to the §13.1 day-start fade-in only.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-57
+Section: §8.12 and §13.5 (desk lamp shade emission)
+Context: No level is given. Current build uses 1.0 while lit (placeholder).
+Question: What emission strength should the lit shade use?
+Options you see: A: keep 1.0 / B: another value you choose, with its reason / C: something else
+
+Decision (opus-agent): A — keep `emission_strength` 1.0 in the lamp-shade colour `#2F4F3A` while lit, and 0 when switched off (§13.5). 1.0 is the spec's value for a lit light source (fluorescent tubes, §8.12). The shade's dark green keeps it subdued, so no new number is needed.
+Placeholder in code/config: matches. Remove the placeholder marker in `scripts/desk/lamp.gd`.
+
+## QUESTION-58
+Section: §11.1 (lamp_click gain), following QUESTION-24
+Context: The M3 player build plays the player's own lamp click at 0 dB, because the file peak of −20 dBFS meets Rule B. The scripted lamp click in §15.1 was read as needing a gain of −4 dB or less.
+Question: Is the player's lamp click at 0 dB correct?
+Options you see: A: correct / B: the player click also needs a gain / C: something else
+
+Decision (opus-agent): A — correct. A click the player makes is player-caused, and −20 dBFS meets Rule B (≤ −10 dBFS). A correction for the record: the scripted Ending A click (§15.1 step 5) needs at most −10 dB gain, not −4 dB. Its attack is about 1 ms, and Rule A requires a non-player sound with an attack under 150 ms to stay at or below −30 dBFS, so −20 − 10 = −30 dBFS.
+Placeholder in code/config: matches for the player click. Wherever the Ending A sequence plays `lamp_click`, it must pass `player_caused = false` with gain ≤ −10 dB (ending code, M10).
