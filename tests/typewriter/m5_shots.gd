@@ -91,6 +91,13 @@ func _run() -> void:
 	_view.type_char("0")
 	await _frames(4)
 	await _capture("m5_1_typing_p1.png")
+	# Pick round trip: a page point in cell (3, 6) projected to the screen, then picked again.
+	var pick_px := DocRenderer.cell_origin(3, 6) + Vector2(5.0, 5.0)
+	var local := Vector3((pick_px.x / DocModel.PAGE_W - 0.5) * 0.21, (0.5 - pick_px.y / DocModel.PAGE_H) * 0.297, 0.0)
+	var world: Vector3 = _view._paper.global_transform * local
+	var screen: Vector2 = _view._cam.unproject_position(world)
+	var back: Vector2 = _view._paper_hit(screen)
+	print("PICK expected cell (3, 6) got %s (page px %s -> %s)" % [str(DocRenderer.cell_at_px(back)), str(pick_px), str(back)])
 	_view.close_typing_view()
 	await _wait(0.7)
 	# Full-resolution page of the same P-1 (768 x 1088), for reading the typed values.

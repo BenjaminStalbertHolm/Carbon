@@ -398,3 +398,22 @@ Options you see: A: accept / B: measure to the nearest point of the Desk 12 boun
 
 Decision (opus-agent): A — measure from the player (camera) to the centre of Desk 12, the same point-to-point convention used for the other distance rules in the spec. The other rules (§6.2 chair, §9.2 target distance, §10.3 typewriter, §15.2 figure) all measure to a single point, so this keeps them consistent and avoids inventing a bounds test.
 Placeholder in code/config: matches. No change.
+
+## QUESTION-45
+Section: §9.3 D4-U2 (silhouette visibility) with §5.2 (frosted glass alpha) and §5.3 (shader)
+Context: The silhouette sits 0.05 m behind the supervisor door's frosted glass (`scripts/world/door_model.gd`, `TEX_FROSTED`). `psx_spatial.gdshader` renders opaque (no alpha blend, texture alpha ignored), so the glass hides the figure completely. The M8 screenshot m8_4_supervisor_door.png shows the glass and no figure.
+Question: How should the silhouette become visible through the glass?
+Options you see: A: translucent glass, by alpha blend or dithered transparency on the glass only, so the figure shows faintly / B: draw the figure in front of the glass with a dithered see-through glass over it / C: keep the figure hidden and record it / D: something else
+
+Decision (opus-agent): A, with alpha blending at the spec's value. §5.2 already defines the colour as "Frosted glass `#B0B8B0` at alpha 0.7", so the opaque glass is a shader shortcoming, not a spec gap. Render every frosted-glass surface as a standard alpha blend (blend_mix) at alpha 0.7, through a glass variant of the PSX shader with the same vertex snap, affine mapping and vertex lighting. Do not add an extra dither: the post shader (§4.3) already quantises and dithers the frame, so the blended result gets the PS1 dither for free. B is rejected because it contradicts "behind the glass". C is rejected because it makes D4-U2 a change nobody can ever see.
+For the figure to read only as a faint shape, the supervisor room seen through the glass must be dark. Render the room's interior faces `#000000`, matching "an unlit box room" (§6.1) and the unlit `#000000` box used behind the exit door (§15.2); the current `#2A2A26` is invented. The silhouette (`#3A3D38`, normal lit material) then shows through the 30% transmission as a faint shape slightly lighter than its dark surround. The glass emissive (`#9AA39A`, 0.15) and the "SUPERVISOR" label (opaque, in front of the glass) stay as they are. The D4-U2 seen and unseen rules are unchanged. This depends on the north-wall door opening from QUESTION-39; without it, the figure is still inside the wall.
+Shader approach: keep `psx_spatial.gdshader` unchanged in behaviour for every other object. Move its shared vertex and fragment code into an include, and add a glass variant that differs only in `render_mode` (blend_mix, depth_draw_opaque, cull_back) and in writing `ALPHA = albedo_color.a * texture alpha`. Every mesh still uses the PSX spatial code, so §5.3 holds.
+Placeholder in code/config: does not match. Files to change:
+- `shaders/psx_spatial.gdshader`: move the shared code into the include; no change in behaviour.
+- New `shaders/psx_spatial_common.gdshaderinc`: the shared snap, affine and lighting code.
+- New `shaders/psx_spatial_glass.gdshader`: blend_mix variant that sets ALPHA.
+- `scripts/world/geometry.gd`: a material factory option for the glass variant with the colour's alpha.
+- `scripts/world/door_model.gd`: the supervisor glass uses the glass material, `#B0B8B0` at alpha 0.7. The supervisor room's faces seen through the opening become `#000000`.
+- `scripts/world/hall_c.gd`: the four east-wall windows use the same glass material (§5.2 applies to all frosted glass). Behind them is only the wall, so they just gain a slight wall tint.
+- `scripts/world/hall_c.gd` `_wall()`: the door openings from QUESTION-39.
+Re-take the M8 screenshot of the supervisor door to confirm a faint figure shows through the glass.
