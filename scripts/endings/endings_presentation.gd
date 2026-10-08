@@ -9,14 +9,26 @@ extends Node
 
 const ExitDoor := preload("res://scripts/endings/exit_door.gd")
 const ClerkFigure := preload("res://scripts/world/clerk_figure.gd")
+const TypewriterView := preload("res://scripts/typewriter/typewriter_view.gd")
 const Doc := preload("res://scripts/logic/doc_model.gd")
 const Content := preload("res://scripts/logic/content.gd")
 
-## Scripted sounds are not player-caused, so Rule A applies to them (QUESTION-24, QUESTION-58).
-## paper_in and paper_out (file peak -20 dBFS) take -6 dB. The scripted lamp click takes -10 dB,
-## because its attack is about 1 ms (QUESTION-58).
+## Gains (QUESTION-24, QUESTION-58, QUESTION-68). The scripted sounds are not player-caused, so Rule A
+## applies, and each gain is set by the sound's attack. Ending A's paper_in (Hann rise, about 240 ms
+## to 90%) takes -6 dB. Its paper_out (50 ms rise) takes -10 dB. The scripted lamp click (about 1 ms
+## attack) takes -10 dB. Ending C's eject and paper_in follow the player's click, so they are
+## player-caused and play at 0 dB (Rule B).
 const SCRIPTED_GAIN_DB := -6.0
+const PAPER_OUT_SCRIPTED_DB := -10.0
 const LAMP_CLICK_GAIN_DB := -10.0
+const PLAYER_GAIN_DB := 0.0
+## Paper timing (QUESTION-62): the slide out of the typewriter is the 0.6 s animation of
+## typewriter_view.gd (EJECT_MS), then the sheet travels to the read stack in the same 0.6 s as paper_in.
+const PAPER_OUT_S := 0.6
+const PAPER_TRAVEL_S := 0.6
+const PAPER_IN_S := 0.6
+## Row spacing of the flat sheets on a desk stack (desk4_items.gd SHEET_SPACING).
+const STACK_SPACING := 0.0008
 const FINAL_CAM_POS := Vector3(5.25, 1.55, 5.60)
 const FINAL_PITCH_DEG := -12.0
 const FINAL_NAMEPLATE := "0413"
@@ -76,6 +88,7 @@ func player_crossed() -> bool:
 	return cam != null and cam.global_position.z > CLOCK_WALL_Z
 
 
+## Floor-plane distance (x and z) in metres from the player to the Desk 4 figure's root (QUESTION-67).
 func figure_distance() -> float:
 	if player == null or _clerk4 == null:
 		return INF
@@ -100,18 +113,24 @@ func fixture_on(index: int) -> void:
 
 # --- Paper (spec 7.5, 7.7, 8.5) ---------------------------------------------------------------
 
-func paper_ejected() -> void:
+## The loaded paper leaves the typewriter for the read stack. No typing view opens. The sheet itself
+## slides out over 0.6 s with paper_out, then travels to the read stack over 0.6 s, and joins the stack
+## on arrival, so it never jumps (QUESTION-62). A transcription carbon moves to the carbon spot at once
+## (DayDirector.paper_removed), because Ending C loads it next. Ending A's eject is scripted (paper_out at
+## -10 dB); Ending C's follows the player's click (0 dB, player-caused).
+func paper_ejected(player_caused: bool) -> void:
 	if not has_paper():
 		return
+	var paper := _typewriter_paper()
+	var sheet := _sheet_copy(paper)
 	var id: String = typewriter.loaded_doc_id()
 	typewriter.unload_sheet()
-	var gs = _autoload("GameState")
-	if gs != null:
-		gs.place(id, "read_stack")
 	var dd = _autoload("DayDirector")
 	if dd != null:
 		dd.paper_removed(id)
-	_play("paper_out", _node_pos("Typewriter04"), true, SCRIPTED_GAIN_DB, false)
+	var gain := PLAYER_GAIN_DB if player_caused else PAPER_OUT_SCRIPTED_DB
+	_play("paper_out", _node_pos("Typewriter04"), true, gain, player_caused)
+	_travel_to_read_stack(sheet, paper, id)
 
 
 func blank_sheet_loaded() -> void:
@@ -120,6 +139,7 @@ func blank_sheet_loaded() -> void:
 		return
 	var id: String = dd.take_blank_sheet()
 	if id != "" and bool(typewriter.load_sheet(id)):
+		_slide_in(_typewriter_paper())
 		_play("paper_in", _node_pos("Typewriter04"), true, SCRIPTED_GAIN_DB, false)
 
 
@@ -129,12 +149,14 @@ func carbon_stack_moved() -> void:
 	pass
 
 
+## Ending C step 1: the top carbon slides in after the player's click, so paper_in is player-caused at 0 dB.
 func carbon_loaded() -> void:
 	var id := _top_carbon()
 	if id == "" or typewriter == null:
 		return
 	if bool(typewriter.load_sheet(id)):
-		_play("paper_in", _node_pos("Typewriter04"), true, SCRIPTED_GAIN_DB, false)
+		_slide_in(_typewriter_paper())
+		_play("paper_in", _node_pos("Typewriter04"), true, PLAYER_GAIN_DB, true)
 
 
 # --- Ghost typing (spec 10.2) -------------------------------------------------------------------
@@ -169,7 +191,9 @@ func silence() -> void:
 		return
 	for bed in ["hum", "room_tone", "vent_shepard"]:
 		ad.stop_bed(bed)
-	# Clerk typing and the clock stop here as well. Neither has a stop hook yet (see the report).
+	# Clerk typing and the clock stop too, but not here. main.gd's RoomPresentation overrides silence(),
+	# calls this method, then emits room_silenced, and main.gd hands that signal to ClerkBehaviour.silence()
+	# and ClockBehaviour.silence() (spec 15.3 step 4).
 
 
 # --- Black screen (spec 13.1, 15) --------------------------------------------------------------
@@ -220,7 +244,8 @@ func camera_to_free(_seconds: float) -> void:
 
 
 ## Final shot (spec 15.1 step 6): camera, F2 lit with no flicker, lamp on, Desk 4 nameplate 0413,
-## and the clerk at Desk 4. The screen is already black, so the shot is shown with a cut.
+## and the clerk at Desk 4. The screen is black when this runs and stays black: the faded_in signal
+## (1.5 s, QUESTION-59) brings the shot in, so it is not cut to.
 func final_shot() -> void:
 	_set_fixture(2, true)
 	_refresh_hum()
@@ -232,8 +257,6 @@ func final_shot() -> void:
 	_place_camera(FINAL_CAM_POS, FINAL_PITCH_DEG)
 	if pipeline != null:
 		pipeline.set_high_resolution(false)
-	if black != null:
-		black.set_shade(0.0)
 
 
 # --- Restoration and the refusal (spec 15.2, 15.3) -----------------------------------------------
@@ -310,6 +333,95 @@ func duplicate_hall_set() -> void:
 	_set_nameplate(4, _player_name())
 	_ensure_clerk4()
 	_place_player()
+
+
+# --- Paper travel (spec 7.7, 15.1 step 3, 15.3 step 1) -------------------------------------------
+
+func _typewriter_paper() -> MeshInstance3D:
+	var tw := _node_3d("Typewriter04")
+	if tw == null:
+		return null
+	return tw.find_child("Paper", true, false) as MeshInstance3D
+
+
+## A copy of the typewriter's paper quad at its current pose. The ejected sheet travels on the copy,
+## because the typewriter's own paper is hidden at once (unload_sheet) and loads the blank sheet next.
+## The copy has its own shader material, so the blank sheet does not change the copy's page.
+func _sheet_copy(paper: MeshInstance3D) -> MeshInstance3D:
+	if paper == null or hall == null:
+		return null
+	var sheet := paper.duplicate() as MeshInstance3D
+	sheet.name = "EjectedSheet"
+	var mat := paper.material_override as ShaderMaterial
+	if mat != null:
+		sheet.material_override = mat.duplicate()
+	sheet.visible = true
+	hall.add_child(sheet)
+	sheet.global_transform = paper.global_transform
+	return sheet
+
+
+## Slides the copy out of the typewriter (paper_out, 0.6 s), then over to the read stack (0.6 s). On
+## arrival the sheet joins the read stack and the copy is freed, so the stack never shows it early.
+## Without a copy, the sheet joins the read stack at once.
+func _travel_to_read_stack(sheet: MeshInstance3D, paper: MeshInstance3D, id: String) -> void:
+	if sheet == null or paper == null:
+		_join_read_stack(id)
+		return
+	var from := sheet.global_transform
+	var parent := paper.get_parent() as Node3D
+	var out := from
+	if parent != null:
+		out = Transform3D(from.basis, parent.global_transform * (paper.position + TypewriterView.EJECT_OFFSET))
+	var land := _read_stack_pose(out)
+	var tween := sheet.create_tween()
+	tween.tween_method(_set_sheet.bind(sheet, from, out), 0.0, 1.0, PAPER_OUT_S)
+	tween.tween_method(_set_sheet.bind(sheet, out, land), 0.0, 1.0, PAPER_TRAVEL_S)
+	tween.tween_callback(_land_on_read_stack.bind(sheet, id))
+
+
+func _land_on_read_stack(sheet: MeshInstance3D, id: String) -> void:
+	_join_read_stack(id)
+	sheet.queue_free()
+
+
+func _join_read_stack(id: String) -> void:
+	var gs = _autoload("GameState")
+	if gs != null:
+		gs.place(id, "read_stack")
+
+
+func _set_sheet(k: float, sheet: Node3D, a: Transform3D, b: Transform3D) -> void:
+	sheet.global_transform = a.interpolate_with(b, k)
+
+
+## The pose of the top sheet on the read stack (desk4_items.gd lays each sheet flat, with its row at
+## (index + 0.5) x STACK_SPACING). The fallback is used when the desk has no read stack.
+func _read_stack_pose(fallback: Transform3D) -> Transform3D:
+	var stack := _node_3d("Desk04/ReadStack")
+	if stack == null:
+		return fallback
+	var gs = _autoload("GameState")
+	var count := 1 if gs == null else maxi(1, int(gs.loc.read_stack.size()))
+	var lay := Transform3D(Basis.from_euler(Vector3(deg_to_rad(-90.0), 0.0, 0.0)), Vector3(0.0, STACK_SPACING * (float(count) - 0.5), 0.0))
+	return stack.global_transform * lay
+
+
+## An incoming sheet slides into the typewriter from the tray: the same offset and 0.6 s as a sheet
+## loaded in the typing view (typewriter_view.gd LOAD_OFFSET). It visibly travels; it does not appear.
+func _slide_in(paper: MeshInstance3D) -> void:
+	if paper == null:
+		return
+	var rest := paper.position
+	paper.position = rest + TypewriterView.LOAD_OFFSET
+	var tween := paper.create_tween()
+	tween.tween_property(paper, "position", rest, PAPER_IN_S)
+
+
+func _node_3d(path: String) -> Node3D:
+	if hall == null:
+		return null
+	return hall.get_node_or_null(path) as Node3D
 
 
 # --- Helpers -------------------------------------------------------------------------------------

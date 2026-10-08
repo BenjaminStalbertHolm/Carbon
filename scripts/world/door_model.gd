@@ -13,8 +13,9 @@ const DOOR_HEIGHT := 2.1
 ## Centre x of the two doors (spec 6.1).
 const SUPERVISOR_X := 0.0
 const EXIT_X := -6.0
-## Door-local x of the exit leaf's hinge (its west edge). The leaf swings about this line.
-const EXIT_HINGE_X := 0.5
+## Door-local x of the exit leaf's hinge: the east edge (world x -5.5, since the root is turned
+## 180 degrees). The leaf swings about this line, and its handle sits near the free west edge (QUESTION-64).
+const EXIT_HINGE_X := -0.5
 const GLASS_BOTTOM := 1.05
 const HANDLE_X := 0.38
 const HANDLE_Y := 1.0
@@ -51,7 +52,7 @@ static func build_supervisor(parent: Node3D) -> Node3D:
 ## Locked except in Ending B (M10). The root is turned 180 degrees so +Z faces north.
 static func build_exit(parent: Node3D) -> Node3D:
 	var door := Geo.group(parent, "ExitDoor", Vector3(EXIT_X, 0.0, 6.0), Vector3(0, 180, 0))
-	# The leaf (panel, handle and collision) hinges at its west edge, door-local x = +0.5, so it
+	# The leaf (panel, handle and collision) hinges at its east edge, door-local x = -0.5, so it
 	# can swing 90 degrees outward (south) over 1.2 s (spec 15.2 step 2, endings/exit_door.gd).
 	var leaf := Geo.group(door, "Leaf", Vector3(EXIT_HINGE_X, 0.0, 0.0))
 	var shift := Vector3(EXIT_HINGE_X, 0.0, 0.0)

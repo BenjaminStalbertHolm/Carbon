@@ -5,6 +5,9 @@ extends Node
 ##                               carbons kept, RO-5 refused): the stack Ending C is clicked on
 ##   endings_b_duplicate_hall.png  the duplicate hall: standing at (0, 1.62, -5.30) facing south, the clerk
 ##                               at Desk 4, the nameplate with the player's name, the exit door shut
+##   endings_exit_door_open.png  the exit door swung open (1.2 s), the unlit box beyond it
+##   endings_a_fade_mid.png      Ending A's final shot, half-way through its 1.5 s fade in from black
+##   endings_a_final_shot.png    Ending A's final shot, faded in
 ## Dev-only and excluded from export (tests/*).
 ## Run: xvfb-run -a -s "-screen 0 1280x1024x24" godot --path /home/user/Carbon res://tests/endings/endings_shots.tscn -- --out=<dir>
 
@@ -73,6 +76,34 @@ func _process(delta: float) -> void:
 			_stage = 5
 			_wait_frames = 2
 		5:
+			# The exit door swung open (spec 15.2 step 2): the leaf's hinge is on the east edge, so the free
+			# edge swings south into the unlit box. The player stands at (-6, 0, 3), facing the door.
+			_main.endings_pres.door_swing(1.2)
+			_main.player.position = Vector3(-6.0, 0.0, 3.0)
+			_main.player.set_look(180.0, 0.0)
+			_main.player.camera().look_at(Vector3(-6.0, 1.0, 6.5), Vector3.UP)
+			_stage = 6
+			_pending_wait = 1.6
+		6:
+			_shot("endings_exit_door_open.png")
+			_stage = 7
+			_wait_frames = 2
+		7:
+			# Ending A's final shot comes in from black over 1.5 s (QUESTION-59): the shot is set while black.
+			_main.black.set_shade(1.0)
+			_main.endings_pres.final_shot()
+			_main.endings_pres.faded_in(1.5)
+			_stage = 8
+			_pending_wait = 0.75
+		8:
+			_shot("endings_a_fade_mid.png")
+			_stage = 9
+			_pending_wait = 1.2
+		9:
+			_shot("endings_a_final_shot.png")
+			_stage = 10
+			_wait_frames = 2
+		10:
 			get_tree().quit(0)
 
 

@@ -4,7 +4,8 @@ extends RefCounted
 ## ghost_idle, end_line). lines are the ghost lines from endings.gd (ending_c_lines). restore_desks
 ## are the desk numbers from endings.gd (desks_to_restore). lit maps "1".."6" to the lit state.
 
-signal paper_ejected
+## player_caused is true here: the eject follows the player's click (QUESTION-68).
+signal paper_ejected(player_caused: bool)
 signal carbon_stack_moved
 signal carbon_loaded
 signal camera_to_typing(seconds: float)
@@ -56,7 +57,7 @@ func run() -> void:
 	set_input_mode.emit("off")
 	# Step 1: a loaded paper comes out, the carbon stack travels 0.8 s and loads (paper_in).
 	if _paper_loaded:
-		paper_ejected.emit()
+		paper_ejected.emit(true)
 	carbon_stack_moved.emit()
 	await clock.wait(TRAVEL_S)
 	carbon_loaded.emit()

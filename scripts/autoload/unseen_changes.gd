@@ -197,14 +197,15 @@ func _check_reverts(delta: float) -> void:
 			if st4.mark and gaze.unseen_time(door) >= UNSEEN_MIN_S:
 				_revert(c4)
 	# D3-U1: the apparition hides when the player is within 3.0 m of Desk 12 and the
-	# figure has been unseen for 0.5 s. It never reappears.
+	# figure has been unseen for 0.5 s. It never reappears. The distance is floor-plane,
+	# from the camera to the centre of Desk 12 (QUESTION-44, QUESTION-67).
 	var c3 := _change("D3-U1")
 	var st3 := _state("D3-U1")
 	if st3.applied and not st3.reverted:
 		var fig = _node("Clerk12")
 		var desk12 = _node("Desk12")
 		if fig != null and desk12 != null:
-			if gaze.distance_to_camera(desk12) < APPARITION_HIDE_DISTANCE_M and gaze.unseen_time(fig) >= APPARITION_HIDE_UNSEEN_S:
+			if gaze.camera_floor_distance(desk12.global_position) < APPARITION_HIDE_DISTANCE_M and gaze.unseen_time(fig) >= APPARITION_HIDE_UNSEEN_S:
 				_revert(c3)
 
 
@@ -214,8 +215,9 @@ func _remove_apparition_overnight() -> void:
 		_revert(_change("D3-U1"))
 
 
-## Metrics for the apply rule: Vector2(unseen, distance). The worst case over every
-## target, so a group counts as unseen only when all of its members are.
+## Metrics for the apply rule: Vector2(unseen, distance), the distance on the floor plane
+## (QUESTION-67, Gaze.distance_to_camera). The worst case over every target, so a group counts
+## as unseen only when all of its members are.
 func _metrics(c: Dictionary) -> Vector2:
 	var gaze = _gaze()
 	var nodes := _target_nodes(c)

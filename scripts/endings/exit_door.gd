@@ -1,11 +1,11 @@
 extends RefCounted
 ## The exit door (spec 8.13, 15.2): the handle rattles while the door is locked, and when unlocked
 ## the leaf swings 90 degrees outward (south) over 1.2 s with door_open. The leaf is the "Leaf" node
-## that door_model.gd builds at the west edge, so its hinge is the pivot. Rotation about Y by -90
-## degrees carries the free edge to the south.
+## that door_model.gd builds with its hinge at the east edge, so the hinge is the pivot. The free edge
+## is then the west edge. Rotation about Y by +90 degrees carries that free edge to the south (QUESTION-64).
 
 const Doc := preload("res://scripts/world/door_model.gd")
-const OPEN_YAW_DEG := -90.0
+const OPEN_YAW_DEG := 90.0
 const CLOSED_YAW_DEG := 0.0
 
 var _leaf: Node3D = null
@@ -56,7 +56,8 @@ func swing_open(seconds: float) -> void:
 
 
 ## The leaf's free edge in world space, for checks (after the swing it lies south of the hinge).
+## The leaf runs from its hinge at leaf-local x 0 to the free edge at leaf-local x DOOR_WIDTH.
 func free_edge_world() -> Vector3:
 	if _leaf == null:
 		return Vector3.ZERO
-	return _leaf.to_global(Vector3(-Doc.DOOR_WIDTH, 0.0, 0.0))
+	return _leaf.to_global(Vector3(Doc.DOOR_WIDTH, 0.0, 0.0))

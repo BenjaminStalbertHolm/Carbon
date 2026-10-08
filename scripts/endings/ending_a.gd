@@ -7,12 +7,15 @@ extends RefCounted
 ## then run(). lit maps "1".."6" to true for each fixture that is lit when the sequence starts.
 
 signal fixture_off(index: int)
-signal paper_ejected
+## player_caused is false here: the eject is scripted (QUESTION-68).
+signal paper_ejected(player_caused: bool)
 signal blank_sheet_loaded
 signal ghost_typed(text: String)
 signal lamp_off
 signal faded_to_black(seconds: float)
 signal final_shot
+## The final shot comes in from black over FINAL_FADE_S (QUESTION-59).
+signal faded_in(seconds: float)
 signal clerk_key(letter: String, delay_ms: float)
 signal cut_to_black
 signal title_typed(text: String, ms_per_char: float)
@@ -29,6 +32,7 @@ const PAPER_IN_S := 0.6
 const LAMP_AFTER_TEXT_S := 3.0
 const LAMP_HOLD_S := 2.0
 const FADE_S := 2.0
+const FINAL_FADE_S := 1.5
 const FINAL_HOLD_S := 12.0
 const TITLE_MS_PER_CHAR := 140.0
 const TITLE_HOLD_S := 3.0
@@ -67,7 +71,7 @@ func run() -> void:
 		await clock.wait(SWITCH_GAP_S)
 	# Step 3: 2.0 s after the last fixture, the loaded paper comes out and a blank sheet slides in.
 	if bool(_has_paper.call()):
-		paper_ejected.emit()
+		paper_ejected.emit(false)
 		await clock.wait(EJECT_S)
 	blank_sheet_loaded.emit()
 	await clock.wait(PAPER_IN_S)
@@ -83,6 +87,7 @@ func run() -> void:
 	# Step 6: final shot (input disabled), then 12.0 s of the Desk 4 clerk typing to ghost timing.
 	set_input_mode.emit("off")
 	final_shot.emit()
+	faded_in.emit(FINAL_FADE_S)
 	await _final_stream()
 	# Step 7: cut to black, the title, hold, clear, then credits.
 	cut_to_black.emit()

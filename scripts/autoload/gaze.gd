@@ -61,8 +61,23 @@ func seen_time(node: Node) -> float:
 	return float(_entry(node).get("seen", 0.0))
 
 
+## Floor-plane distance (x and z only) from the camera to the node's box centre, in metres, as of the
+## last physics frame (QUESTION-67). The ghost trigger (spec 10.3), the apply rule (spec 9.2) and the
+## Desk 12 rule (spec 9.3 D3-U1) all read this.
 func distance_to_camera(node: Node) -> float:
 	return float(_entry(node).get("dist", INF))
+
+
+## Floor-plane distance from the live camera to a point, in metres (INF without a camera).
+func camera_floor_distance(point: Vector3) -> float:
+	if _camera == null or not _camera.is_inside_tree():
+		return INF
+	return floor_distance(_camera.global_transform.origin, point)
+
+
+## Floor-plane distance between two points: their x and z components only (QUESTION-67).
+static func floor_distance(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z))
 
 
 func set_overlay(on: bool) -> void:
@@ -104,7 +119,7 @@ func _physics_process(delta: float) -> void:
 		var looked := false
 		var dist := INF
 		if has_box and have_cam:
-			dist = cam_pos.distance_to(box.get_center())
+			dist = floor_distance(cam_pos, box.get_center())
 			if not _overlay_open or node == _overlay_exempt:
 				inside = aabb_in_planes(box, planes)
 		if inside:

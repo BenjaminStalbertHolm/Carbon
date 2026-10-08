@@ -14,6 +14,8 @@ const ExitDoor := preload("res://scripts/endings/exit_door.gd")
 const DoorModel := preload("res://scripts/world/door_model.gd")
 const HallC := preload("res://scripts/world/hall_c.gd")
 const Content := preload("res://scripts/logic/content.gd")
+const Doc := preload("res://scripts/logic/doc_model.gd")
+const GazeScript := preload("res://scripts/autoload/gaze.gd")
 
 const TOL := 0.05
 const CHAR_S := 0.15  # ghost delay per character in the fake presentation
@@ -88,8 +90,8 @@ class Fake extends RefCounted:
 	func fixture_on(index: int) -> void:
 		_rec("fixture_on", [index])
 
-	func paper_ejected() -> void:
-		_rec("paper_ejected")
+	func paper_ejected(player_caused: bool) -> void:
+		_rec("paper_ejected", [player_caused])
 
 	func blank_sheet_loaded() -> void:
 		_rec("blank_sheet_loaded")
@@ -226,6 +228,8 @@ func _run() -> void:
 	_test_standing_guard()
 	_test_exit_door_geometry()
 	_test_presentation_hall()
+	_test_floor_distance()
+	_test_presentation_sounds()
 	print("ENDINGS: ", _checks, " checks, ", _fails, " failures")
 	quit(0 if _fails == 0 else 1)
 
@@ -266,6 +270,9 @@ func _test_ending_a() -> void:
 	_check(not fade_args.is_empty() and _near(float(fade_args[0][0]), 2.0), "A: fade lasts 2.0 s")
 	var final := _fake.times("final_shot")
 	_check(final.size() == 1 and _near(final[0], fade[0] + 2.0), "A: final shot after the fade")
+	var fade_in := _fake.times("faded_in")
+	_check(fade_in.size() == 1 and _near(fade_in[0], final[0]) and _near(float(_fake.args_of("faded_in")[0][0]), 1.5), "A: the final shot fades in from black over 1.5 s (QUESTION-59)")
+	_check(_fake.args_of("paper_ejected") == [[false]], "A: the eject is scripted (player_caused false, QUESTION-68)")
 	_check(_ctl.input_off() and _ctl.standing_locked() and _ctl.typing_locked(), "A: input off, standing and typing locked in the final shot")
 	var keys := _fake.times("clerk_key")
 	_check(keys.size() > 10, "A: the clerk stream types through the final shot (%d keys)" % keys.size())
@@ -381,9 +388,11 @@ func _test_ending_c_mixed_run() -> void:
 	_ctl.bind_interaction(null, player, desk)
 	_dd.ro5_sent.emit(false)
 	_fake.reset()
+	_fake.paper = true  # a paper is loaded when the carbon stack is clicked (step 1 ejects it)
 	_ctl._on_action("carbon_spot", null, Vector3.ZERO)
 	var ghost: Array = _fake.args_of("ghost_typed")
 	_check(ghost.size() == 1, "C: the ghost record starts after the carbon click")
+	_check(_fake.args_of("paper_ejected") == [[true]], "C: the loaded paper is ejected on the click, player-caused (QUESTION-68)")
 	var expect_name := String(_tt.substitute("{NEXT_OF_KIN}"))
 	var expect := ["RECORD RESTORED", "DOBRA, KASIMIR", "J. ABEL", expect_name, "CLERK 0412"]
 	var got: PackedStringArray = String(ghost[0][0]).split("\n")
@@ -497,11 +506,16 @@ func _test_exit_door_geometry() -> void:
 	var door := ExitDoor.new()
 	_check(door.setup(holder), "exit: the door has a Leaf to swing")
 	var leaf := holder.get_node("ExitDoor/Leaf") as Node3D
+	var hinge := leaf.global_position
+	_check(_near(hinge.x, -5.5) and _near(hinge.z, 6.0), "exit: the hinge is on the east edge, x -5.5, z 6.0 (got %s)" % str(hinge))
 	var closed := door.free_edge_world()
-	_check(_near(closed.x, -5.5) and _near(closed.z, 6.0), "exit: closed, the free edge is at x -5.5, z 6.0 (got %s)" % str(closed))
-	leaf.rotation.y = deg_to_rad(-90.0)
+	_check(_near(closed.x, -6.5) and _near(closed.z, 6.0), "exit: closed, the free (west) edge is at x -6.5, z 6.0 (got %s)" % str(closed))
+	var handle := leaf.find_child("Rose", true, false) as Node3D
+	_check(handle != null and _near(handle.global_position.x, -6.38) and absf(handle.global_position.x - closed.x) < 0.2,
+		"exit: the handle sits near the free edge, at x -6.38 (got %s)" % str(handle.global_position if handle != null else null))
+	leaf.rotation.y = deg_to_rad(90.0)
 	var open := door.free_edge_world()
-	_check(_near(open.x, -6.5) and _near(open.z, 7.0), "exit: 90 degrees open, the free edge lies south at x -6.5, z 7.0 (got %s)" % str(open))
+	_check(_near(open.x, -5.5) and _near(open.z, 7.0), "exit: 90 degrees open, the free edge lies south at x -5.5, z 7.0 (got %s)" % str(open))
 	door.reset_closed_locked()
 	_check(not door.is_unlocked() and not door.is_open() and _near(leaf.rotation.y, 0.0), "exit: reset closes and locks the door")
 	door.unlock()
@@ -534,4 +548,86 @@ func _test_presentation_hall() -> void:
 	pres.final_shot()
 	_check(String(_gs.nameplate["4"]) == "0413", "hall: the final shot reads 0413")
 	pres.free()
+	holder.free()
+
+
+# --- Floor-plane distance (QUESTION-67) -------------------------------------------------------------
+
+func _test_floor_distance() -> void:
+	var d := GazeScript.floor_distance(Vector3(0.0, 1.62, 0.0), Vector3(3.0, 0.0, 4.0))
+	_check(_near(d, 5.0), "floor: distance is on the floor plane, 5.0 m (got %.3f)" % d)
+	var high := GazeScript.floor_distance(Vector3(0.0, 1.62, 0.0), Vector3(0.0, 2.9, 2.0))
+	_check(_near(high, 2.0), "floor: height is ignored, 2.0 m (got %.3f)" % high)
+
+
+# --- Scripted sounds in the presentation (QUESTION-58, QUESTION-68) -----------------------------------
+
+## Records every sound the presentation plays, so the gains and the player_caused flags can be checked.
+class SoundPres extends "res://scripts/endings/endings_presentation.gd":
+	var sounds: Array = []
+
+	func _play(sound: String, _pos: Vector3, _positional: bool, gain_db: float, player_caused: bool) -> void:
+		sounds.append([sound, gain_db, player_caused])
+
+
+## A typewriter stand-in with one loaded sheet. load_sheet() always succeeds.
+class FakeTypewriter extends Node:
+	var loaded := true
+	var doc := ""
+
+	func is_loaded() -> bool:
+		return loaded
+
+	func loaded_doc_id() -> String:
+		return doc if loaded else ""
+
+	func unload_sheet() -> String:
+		var id := doc
+		loaded = false
+		return id
+
+	func load_sheet(id: String) -> bool:
+		loaded = true
+		doc = id
+		return true
+
+
+func _test_presentation_sounds() -> void:
+	_gs.new_game(5150)
+	var holder := Node3D.new()
+	root.add_child(holder)
+	var hall := HallC.build(holder, {})
+	var tw := FakeTypewriter.new()
+	tw.doc = "SHEET-TEST"
+	holder.add_child(tw)
+	var pres := SoundPres.new()
+	root.add_child(pres)
+	pres.setup(null, hall, null, tw, null, null)
+	var paper := hall.get_node("Typewriter04").find_child("Paper", true, false) as MeshInstance3D
+	var rest := paper.global_position if paper != null else Vector3.ZERO
+	# Ending A: the scripted eject is paper_out at -10 dB, not player-caused.
+	pres.paper_ejected(false)
+	_check(pres.sounds == [["paper_out", -10.0, false]], "sound: Ending A paper_out is scripted at -10 dB (got %s)" % str(pres.sounds))
+	_check(not tw.is_loaded(), "sound: the typewriter is unloaded at once, so the blank sheet can load")
+	var sheet := hall.find_child("EjectedSheet", true, false) as Node3D
+	_check(sheet != null and sheet.global_position.is_equal_approx(rest), "travel: the ejected sheet starts at the typewriter's paper")
+	# Ending C: the eject follows the player's click, so it is paper_out at 0 dB, player-caused.
+	pres.sounds = []
+	tw.doc = "SHEET-TEST-2"
+	tw.loaded = true
+	pres.paper_ejected(true)
+	_check(pres.sounds == [["paper_out", 0.0, true]], "sound: Ending C paper_out is player-caused at 0 dB (got %s)" % str(pres.sounds))
+	# Ending C step 1: the top carbon slides in as paper_in, player-caused, at 0 dB.
+	var base := Doc.new_doc("SHEET-C", "sheet", "typed", "black")
+	base.pages.append(Doc.new_page())
+	_gs.add_doc(Doc.make_carbon(base, "CARBON-C"), "carbon_spot")
+	pres.sounds = []
+	pres.carbon_loaded()
+	_check(pres.sounds == [["paper_in", 0.0, true]], "sound: Ending C paper_in is player-caused at 0 dB (got %s)" % str(pres.sounds))
+	# The lamp click stays a scripted -10 dB sound (QUESTION-58).
+	pres.sounds = []
+	pres.lamp_off()
+	_check(pres.sounds == [["lamp_click", -10.0, false]], "sound: the scripted lamp click is -10 dB (got %s)" % str(pres.sounds))
+	pres.free()
+	tw.free()
 	holder.free()
