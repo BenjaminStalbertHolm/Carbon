@@ -43,3 +43,10 @@ anti_aliasing/quality/msaa_3d=0
 anti_aliasing/quality/screen_space_aa=0
 anti_aliasing/quality/use_debanding=false
 textures/vram_compression/import_etc2_astc=true
+
+[shader_globals]
+
+psx_snap_grid={
+"type": "vec2",
+"value": Vector2(160, 120)
+}

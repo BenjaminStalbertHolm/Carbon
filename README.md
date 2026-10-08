@@ -6,8 +6,9 @@ decisions are in `QUESTIONS.md`.
 
 ## Status
 
-- M0 (project setup, folder structure, autoload stubs, fonts, asset generators): done. See "Verified" below.
-- M1 onward: not started.
+- M0 (project setup, folder structure, autoload stubs, fonts, asset generators): done. See "Verified (M0)" below.
+- M1 (rendering pipeline: 320x240 SubViewport, PS1 spatial and post shaders, fog, resolution switching): done. See "Verified (M1)" below.
+- M2 onward: not started.
 
 ## Requirements
 
@@ -36,6 +37,17 @@ godot --headless --path . --script res://tests/run_tests.gd
 ```
 
 Exit code 0 means every check passed.
+
+## Rendering test scene (M1)
+
+`tests/psx_test.tscn` is a dev-only scene: a textured cube, a floor with a high-contrast checker, and fog. It is excluded from exports.
+
+```
+godot --path . tests/psx_test.tscn                 # keys: 1 = 320x240, 2 = 640x480, 3 = focus view, D = dither
+godot --path . tests/psx_test.tscn -- --selftest   # toggle checks, exit 0 on success
+```
+
+Arguments after `--`: `--res=high`, `--focus`, `--dither=off`, `--wobble=0`, `--frames=<n>`, `--shot=<png>`. Headless runs have no GL, so use `xvfb-run` on Linux when you need rendered output.
 
 ## Export
 
@@ -87,6 +99,10 @@ are in `QUESTIONS.md`.
 - Frequency sweeps (tube, whoosh, door) move in log-frequency.
 - Seamless loops (`marker_stroke`, the three beds) are built with FFT-domain
   filters or exact phase closure, so they loop without a seam.
+- Dither offset is a Bayer rank scaled to a maximum of ±1/32 before 5-bit quantisation.
+- Fog is applied after lighting: the lit colour is scaled by (1 − fog) and the fog colour is added as emission.
+- Affine texture mapping uses UV×w and w varyings, divided per pixel (spec 4.2). The GPU's perspective-correct interpolation cancels out, which leaves the screen-linear mapping the PS1 used.
+- The snap grid is the project-level shader global `psx_snap_grid`, declared in `project.godot`. Without that declaration, the export-time shader check fails.
 
 ## Verified (M0)
 
@@ -102,3 +118,20 @@ Checked on Linux with Godot 4.3-stable (with its export templates) and Python 3.
 Not verified: nothing has been run on a Mac, so macOS launch, Gatekeeper behaviour, and rendering there are untested. The Windows executable has not been run. The Linux build has only been checked to start and exit; rendering is checked in M1.
 
 The macOS export needs ETC2/ASTC texture import (`rendering/textures/vram_compression/import_etc2_astc`); Godot refuses arm64 and universal exports without it.
+
+## Verified (M1)
+
+Checked on Linux under Xvfb (OpenGL 4.5 core, Mesa llvmpipe), Godot 4.3-stable.
+
+- Self-test (`tests/psx_test.tscn -- --selftest`): 10 toggle and state checks pass. The checks cover the 320x240 default, the HIGH setting, focus view on and off, the snap grid at each resolution, and the dither switch. There are no shader errors.
+- Screenshots (1280x960) show the expected effects:
+  - Vertex snapping: the cube's edges jitter as it turns.
+  - Affine warp: the checker floor's lines bend and shear.
+  - Dither: the output changes on about 695,000 of 1.2 million pixels when dither is turned off.
+  - Fog: the far floor fades toward #2A2A26.
+- Every output value sits on the 32-level 5-bit grid, with zero off-grid pixels in every frame checked.
+- Integer scale: 4× at 320x240 and 2× at 640x480, both filling 1280x960. At a 1000x800 window the picture is 960x720, centred with 20 px side bars. At 300x200 it is 266x200 with 4:3 kept, centred.
+- Export: the Linux build is clean, with no shader errors. The test scene is absent from the pck.
+
+Not verified: rendering on a real GPU and on macOS. Everything above was rendered in software.
+
