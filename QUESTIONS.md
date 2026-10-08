@@ -534,3 +534,97 @@ Options you see: A: correct / B: the player click also needs a gain / C: somethi
 
 Decision (opus-agent): A — correct. A click the player makes is player-caused, and −20 dBFS meets Rule B (≤ −10 dBFS). A correction for the record: the scripted Ending A click (§15.1 step 5) needs at most −10 dB gain, not −4 dB. Its attack is about 1 ms, and Rule A requires a non-player sound with an attack under 150 ms to stay at or below −30 dBFS, so −20 − 10 = −30 dBFS.
 Placeholder in code/config: matches for the player click. Wherever the Ending A sequence plays `lamp_click`, it must pass `player_caused = false` with gain ≤ −10 dB (ending code, M10).
+
+## QUESTION-59
+Section: §15.1 steps 5–6 (into the final shot)
+Context: The spec gives a fade to black, then the final shot, but no fade-in. Current build: cut straight to the final shot.
+Question: How does the final shot begin?
+Options you see: A: cut / B: fade in over 1.5 s / C: something else
+
+Decision (opus-agent): B — fade in over 1.5 s. A cut from full black to a lit room breaks §2.2 ("no screen flashes, no sudden full-screen images"). Every other move from black into the room fades in (§13.1 step 7). 1.5 s is the value §15.2 step 4 uses for the closest analogue, an ending's cut to a repositioned scene. (Step 7 says "cut to black" explicitly, which only darkens.)
+Placeholder in code/config: does not match. Add a 1.5 s fade-in at the start of the final shot in `scripts/endings/ending_a.gd`, or in `scripts/endings/endings_presentation.gd` if that file runs the fades.
+
+## QUESTION-60
+Section: §15.1 steps 5 and 6 (lamp in the final shot)
+Context: Step 5 switches the lamp off, but the final shot says "lamp on". Current build: the lamp and F2 are set on silently at the start of the shot.
+Question: What is the lamp and F2 state in the final shot?
+Options you see: A: as built / B: the lamp stays off and F2 stays lit / C: something else
+
+Decision (opus-agent): A — as built. Step 6 defines the final shot's staged state outright ("F2 lit (no flicker), lamp on"), and the change happens during the black screen. No sound is needed, because nothing visibly switches.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-61
+Section: §15.1 step 2 (fixture switch-off spacing)
+Context: The 2.0 s gap between fixtures. Current build: the gap counts only fixtures that actually switch off, so skipped fixtures take no time.
+Question: Do skipped fixtures take time?
+Options you see: A: as built / B: every step takes 2.0 s, even when skipped / C: something else
+
+Decision (opus-agent): A — "switch off one at a time ... (skip any already off), 2.0 s apart". The 2.0 s separates switch-off events; a skipped fixture is not an event.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-62
+Section: §15.1 step 3 (eject while typing view is closed)
+Context: The paper is ejected while the typing view is closed. Current build: the paper goes straight to the read stack.
+Question: How is the loaded paper ejected?
+Options you see: A: as built / B: the typing view opens for the ejection / C: something else
+
+Decision (opus-agent): C — stay in free view, with no forced camera move: step 1 disables typing view, and §2.2 allows only the listed scripted transitions. The ejected paper must visibly travel. It slides up and out of the typewriter (§7.7 animation, 0.6 s, `paper_out`), then moves to the read stack, the same way the incoming blank sheet "visibly travels". A sheet that jumps straight to the read stack would appear inside the frustum, which §2.2 forbids ("no object ever appears inside the camera frustum"). The same applies to the eject in §15.3 step 1.
+Placeholder in code/config: does not match. In `scripts/endings/ending_a.gd` and `scripts/endings/ending_c.gd`, animate the ejection and the move to the read stack, and do not teleport the sheet.
+
+## QUESTION-63
+Section: §15.3 steps 1, 6 and 7 (timing)
+Context: The carbon stack travel, paper_in and the fixture switch-on have no timing against the camera return. Current build: they run in sequence.
+Question: Should these run in sequence or overlap?
+Options you see: A: in sequence, as built / B: the camera return overlaps the fixtures / C: something else
+
+Decision (opus-agent): A — run in the numbered order. Step 1 (0.8 s travel, then `paper_in`) completes before the step 2 tween. Step 6 is anchored to step 4 (1.0 s after it), and step 7 starts once the last fixture is on. The spec numbers the steps and gives only one explicit offset (step 6), so overlapping step 7 would be invented.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-64
+Section: §15.2 step 2 (exit door hinge)
+Context: The exit door hinge is not given. Current build: hinge on the west edge, the leaf swings south into the unlit box.
+Question: Which edge is the hinge on?
+Options you see: A: as built / B: hinge on the east edge / C: something else
+
+Decision (opus-agent): B — hinge on the east edge (world x = −5.5), so the leaf's free edge swings 90° south into the 1.2 × 2.1 × 1.0 black box. In the current build the root is rotated 180°, so the handle (door-local x +0.38) is at world x ≈ −6.38, only 0.12 m from the west-edge hinge. A door's handle belongs on the free edge, opposite the hinge. Moving the hinge east fixes this without moving the handle.
+Placeholder in code/config: does not match. In `scripts/world/door_model.gd`, set `EXIT_HINGE_X` to the east edge (door-local x = −0.5 under the 180° root rotation) and update the leaf shift. In `scripts/endings/exit_door.gd`, flip the swing sign so the leaf still opens south, and update its free-edge check.
+
+## QUESTION-65
+Section: §15.2 step 6 and §15.3 step 8 (end-line typing style)
+Context: The end-line typing style is not given. Current build: the §13.1 style (Special Elite 40 px, 140 ms per character).
+Question: Which style do the Ending B and C lines use?
+Options you see: A: as built / B: the credits style (32 px, 90 ms per character) / C: something else
+
+Decision (opus-agent): A — the §13.1 style: Special Elite 40 px, `#C8C2AE`, centred, 140 ms per character, `key_clack` non-positional at −30 dBFS (§11.4). §15.1 step 7 gives that style explicitly for the Ending A line, and the other two ending lines are the same kind of line. The credits style belongs only to the credits (§15.4).
+Placeholder in code/config: matches. No change.
+
+## QUESTION-66
+Section: §15.3 (Ending C trigger)
+Context: A hold on the carbon spot is a pick-up, not a click. Current build: only a click starts Ending C.
+Question: Does a hold start Ending C?
+Options you see: A: only a click starts Ending C, as built / B: a hold also starts it / C: something else
+
+Decision (opus-agent): A — only a left-click starts it ("Triggered by left-clicking the carbon stack ... instead of opening read view"). A hold remains the §8.5 pick-up (QUESTION-49).
+Placeholder in code/config: matches. No change.
+
+## QUESTION-67
+Section: §15.2 step 5 ("within 2.5 m" of the Desk 4 figure)
+Context: "Within 2.5 m" of the Desk 4 figure is not defined. Current build: distance from the player's body to the clerk, measured on the floor plane.
+Question: How is the 2.5 m measured?
+Options you see: A: as built / B: distance to the clerk's chair / C: something else
+
+Decision (opus-agent): A — horizontal (floor-plane) distance from the player's position to the figure's root. Use this point-to-point, floor-plane convention for every "within / distance" rule in the spec, including the Desk 12 rule of QUESTION-44 (measure to the Desk 12 centre on the floor plane), §6.2 (chair), §9.2 and §10.3. This keeps them consistent.
+Placeholder in code/config: matches. Check that the QUESTION-44 and §10.3 distance code also measures on the floor plane (`scripts/autoload/unseen_changes.gd`, `scripts/autoload/gaze.gd`, the ghost-trigger code), and change it if it uses 3D distance.
+
+## QUESTION-68
+Section: §11.1 (gains for scripted ending sounds)
+Context: QUESTION-58 sets the scripted lamp click at −10 dB. The endings build sets paper_in and paper_out at −6 dB (file peak −20 dBFS, as in QUESTION-24).
+Question: What gains do the scripted paper_in, paper_out and lamp click use?
+Options you see: A: paper_in and paper_out at −6 dB, the lamp click at −10 dB, as built / B: all three at −10 dB / C: something else
+
+Decision (opus-agent): C — set each gain from Rule A by its attack, and only where the sound is not player-caused.
+- `paper_out` has a 50 ms rise (QUESTION-4), under 150 ms, so it must play at or below −30 dBFS: −10 dB.
+- `paper_in` has a Hann rise whose 90% point is about 240 ms, so −6 dB (−26 dBFS, ≤ −24) is fine. If the checker measures its attack under 150 ms because of the flutter, use −10 dB.
+- The scripted Ending A `lamp_click` uses −10 dB (QUESTION-58).
+The Ending C step 1 `paper_in` (and any eject sound there) is a direct consequence of the player's click within 3.5 s, so it is player-caused and plays at 0 dB.
+Placeholder in code/config: does not match for `paper_out`. Change its scripted gain from −6 dB to −10 dB in `scripts/endings/ending_a.gd` and `scripts/endings/ending_c.gd`. Make sure the Ending C step-1 sounds pass `player_caused = true` at 0 dB.
