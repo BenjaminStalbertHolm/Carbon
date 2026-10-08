@@ -307,4 +307,4 @@ static func _set_whole_file_loop(stream: AudioStreamWAV) -> void:
 
 
 static func _is_ghost_sound(sound: String) -> bool:
-	return sound.begins_with("key_clack") or sound == "carriage_return" or sound == "bell"
+	return sound.begins_with("key_clack") or sound == "carriage_return" or sound == "bell" or sound == "key_jam"

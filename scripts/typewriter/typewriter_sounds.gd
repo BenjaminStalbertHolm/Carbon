@@ -5,15 +5,14 @@ extends RefCounted
 ## over their time.
 ##
 ## Ghost gain (spec 11.1): ghost keys, returns and bells get -20 dB here.
-## Rule A and B (spec 11.1): a sound that is not player-caused (a ghost-typing jam)
-## gets an extra -10 dB, because key_jam peaks at -14 dBFS in its file and Rule A
-## needs -24 dBFS or below at the listener.
+## Rule A and B (spec 11.1, QUESTION-47): a sound that is not player-caused (a ghost-typing jam)
+## gets the same -20 dB as the other ghost sounds. key_jam peaks at -14 dBFS in its file, so
+## -20 dB puts it at -34 dBFS, below Rule A's -24 dBFS at the listener.
 ##
 ## Tests set silent = true and read calls, so no audio plays.
 
 const GHOST_GAIN_DB := -20.0
-const NON_PLAYER_JAM_DB := -10.0
-const RATCHET_MAX_CLICKS := 12
+const NON_PLAYER_JAM_DB := -20.0
 const RATCHET_DEFAULT_MS := 400.0
 ## tube_send is -18 dBFS in its file. Spec 8.4 says the departing canister is at -30 dBFS.
 const TUBE_SEND_LEAVE_DB := -12.0
@@ -83,7 +82,9 @@ func play_tube_leave(at: Vector3) -> void:
 
 
 func _schedule_ratchets(count: int, ms: float, now_ms: float) -> void:
-	var n := mini(maxi(count, 0), RATCHET_MAX_CLICKS)
+	# No cap on the clicks (QUESTION-50). A 53-line move at the default span keeps about ten
+	# 70 ms platen_ratchet files overlapping, which the 16-voice pool holds.
+	var n := maxi(count, 0)
 	if n <= 0:
 		return
 	if n == 1:

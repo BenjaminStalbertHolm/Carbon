@@ -417,3 +417,57 @@ Placeholder in code/config: does not match. Files to change:
 - `scripts/world/hall_c.gd`: the four east-wall windows use the same glass material (§5.2 applies to all frosted glass). Behind them is only the wall, so they just gain a slight wall tint.
 - `scripts/world/hall_c.gd` `_wall()`: the door openings from QUESTION-39.
 Re-take the M8 screenshot of the supervisor door to confirm a faint figure shows through the glass.
+
+## QUESTION-46
+Section: §8.4 (tube departure level) with §11.1
+Context: The spec says the canister leaves with tube_send at −30 dBFS. The file peaks at −18 dBFS. Current build: gain −12 dB, so the played peak is −30 dBFS (the QUESTION-29 rule).
+Question: Is the −30 dBFS the played level?
+Options you see: A: confirm −12 dB gain / B: gain −30 dB / C: something else
+
+Decision (opus-agent): A — confirmed. "at −30 dBFS" is the played peak, so gain = −30 − (−18) = −12 dB, the same rule as QUESTION-29.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-47
+Section: §11.1 and §10.2 (ghost jam sounds)
+Context: Ghost-typed jams (a ghost retired word) play with −10 dB extra gain so that they meet Rule A. The spec gives −20 dB extra gain only for ghost key_clack, carriage_return and bell.
+Question: What gain do ghost-typed jam sounds get?
+Options you see: A: keep −10 dB extra on ghost jam sounds and say so in the spec record / B: apply the spec's −20 dB rule and exempt the jam from Rule A / C: something else
+
+Decision (opus-agent): C — apply the same −20 dB ghost gain to `key_jam` when ghost typing produces it, with no exemption. A does not actually satisfy Rule A: −14 − 10 = −24 dBFS is above −30 dBFS with a ~1 ms attack, so it is a violation. With −20 dB, key_jam plays at −34 dBFS, which passes Rule A outright. §11.1 states the ghost gain's purpose ("so it stays at or below −30 dBFS at Desk 4"), and key_jam is the only typewriter sound ghost typing can produce that the list leaves out. A jam caused by the player's own typing is player-caused and keeps 0 dB.
+Placeholder in code/config: does not match. In `scripts/typewriter/typewriter_sounds.gd`, replace `NON_PLAYER_JAM_DB` (−10) with `GHOST_GAIN_DB` (−20) for ghost jams. Add `key_jam` to `_is_ghost_sound()` in `scripts/autoload/audio_director.gd`.
+
+## QUESTION-48
+Section: §6.4, §7.6 and §12 (right mouse while holding correction fluid in typing view)
+Context: Current build: a right-click returns the bottle to its home. Otherwise holding right mouse in typing view pans to the copyholder.
+Question: What does right mouse do in typing view while the player holds the bottle?
+Options you see: A: as built / B: right-click in typing view always pans, and fluid returns only on a right-click in free view / C: something else
+
+Decision (opus-agent): A — while the bottle is held, a right-click returns it (§7.6, "Right-click returns the bottle to its spot") and does not pan. Once the hand is empty, holding right mouse pans as in §12. The item-specific rule governs, and this mirrors §8.1, where a right-click with a stamp returns the stamp before a second right-click does the view's own action.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-49
+Section: §6.4 (carbon spot) with §8.5
+Context: The §6.4 table says clicking the carbon spot opens read view on the stack. Current build also lets the player hold-click the carbon spot to pick up the top carbon, which the table does not list.
+Question: Can the player pick up a carbon from the carbon spot?
+Options you see: A: keep the pick-up (a hold on the top carbon, the stack stays a stack) / B: click only, as the table says / C: something else
+
+Decision (opus-agent): A — keep it. §8.5 says "Carbons can be picked up (hold-click) and moved to the read stack or copyholder", and carbons normally sit only on the carbon spot, so this rule needs the hold-click there. A plain click still opens read view. With the lower drawer open, a plain click still files the carbons. In Ending C, a plain click still triggers the ending.
+Placeholder in code/config: matches. No change.
+
+## QUESTION-50
+Section: §7.5 (platen_ratchet on a field jump)
+Context: A line jump plays one platen_ratchet per line, spread over the move and capped at 12 clicks.
+Question: Should the clicks be capped?
+Options you see: A: accept / B: one click per line, uncapped / C: something else
+
+Decision (opus-agent): B — one `platen_ratchet` per line passed, spread evenly over the 0.4 s move, with no cap (§7.5: "with platen_ratchet for each line passed"). The cap is an invented number. The SFX pool must allow the overlap, or reuse its oldest voice. All these clicks are player-caused, so the checker applies Rule B to each one.
+Placeholder in code/config: does not match. Remove the 12-click cap in `_schedule_ratchets()` in `scripts/typewriter/typewriter_sounds.gd`, and check the voice limit in `scripts/audio/sfx_pool.gd`.
+
+## QUESTION-51
+Section: §7.6 (correction fluid drying lock), a model defect
+Context: `TypewriterModel._cell_lock` is not cleared by `load_sheet`, so a fluid lock on one sheet can refuse the same cell on the next sheet for up to 2 seconds.
+Question: Should the lock be cleared when a sheet is loaded?
+Options you see: A: clear the lock on load_sheet / B: keep it
+
+Decision (opus-agent): A — clear `_cell_lock` in `load_sheet`. The lock belongs to a blob on a specific sheet (§7.6), so it must not carry over to another sheet. Reloading the same sheet within 2 s is a negligible edge case, and clearing the lock there is harmless.
+Placeholder in code/config: does not match. In `scripts/logic/typewriter_model.gd` `load_sheet()`, add `_cell_lock.clear()`, and add a unit test in `tests/unit/test_typewriter.gd`.
