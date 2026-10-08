@@ -8,8 +8,10 @@ decisions are in `QUESTIONS.md`.
 
 - M0 (project setup, folder structure, autoload stubs, fonts, asset generators): done. See "Verified (M0)" below.
 - M1 (rendering pipeline: 320x240 SubViewport, PS1 spatial and post shaders, fog, resolution switching): done. See "Verified (M1)" below.
-- M2 (Hall C geometry): in progress.
-- M3 to M11: logic for the day flow, the typewriter, redaction, corrections, endings and the text is done and tested headless. Presentation (player, typewriter view, read view, audio, front end, endings sequences, debug console) is being built.
+- M2 to M11 (hall, player, typewriter, read view, redaction, stamps, tube, unseen changes, audio, front end, endings, debug console): built and wired into the game. The acceptance runner (`tests/acceptance/acceptance_runner.gd`) passes its 29 headless tests and the text check, and records spec tests 2, 3, 5, 7, 8, 9, 11 and 12 as partly manual, with the reasons in `tests/ACCEPTANCE.md`.
+- Not yet checked by a person on screen: the visual and audible parts of the manual spec tests listed above. A smoke run of the real game from the content note to Day 2 raised no script errors.
+- Exports: the Linux release export passes the debug strip check (`tests/acceptance/release_strip_check.sh`). The Windows and macOS exports build, but have not been run on those systems.
+- Open decisions are in `QUESTIONS.md`.
 
 ## Requirements
 
