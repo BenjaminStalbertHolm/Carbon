@@ -23,6 +23,7 @@ signal action_pressed(action: String, node: Node3D, hit_position: Vector3)
 
 const HOLD_S := 0.4
 const PICK_LAYER := 2
+const RAY_SKIP_MAX := 8  # pick bodies the ray may skip (unusable in this pose) before it gives up
 const HOLDABLE := ["inbox", "read_stack", "carbon_spot"]
 const STANDING_ACTIONS := ["chair_04", "door_supervisor", "door_exit"]
 const DOOR_HANDLE_PICK := Vector3(0.38, 1.0, 0.06)  # door-local, on the room side
@@ -466,6 +467,10 @@ func _open_held_document() -> void:
 
 
 ## Centre-screen ray (spec 6.4). Returns {action, node, pos} or {} when nothing is hit.
+## Only pick bodies (PICK_LAYER) are tested, so the desk box, the walls and the chair bodies never
+## hide an item. A pick the player cannot use in this pose (the chair while seated, spec 6.2) is
+## skipped, so it does not hide what is behind it (the lower drawer). With no usable pick on the
+## ray, the first pick hit is returned, as before.
 func _raycast() -> Dictionary:
 	if player == null:
 		return {}
@@ -474,13 +479,26 @@ func _raycast() -> Dictionary:
 		return {}
 	var from := cam.global_position
 	var to := from - cam.global_transform.basis.z * float(player.ray_length())
-	var q := PhysicsRayQueryParameters3D.create(from, to)
-	q.collide_with_bodies = true
-	q.collide_with_areas = false
-	q.exclude = [player.get_rid()]
-	var res := cam.get_world_3d().direct_space_state.intersect_ray(q)
-	if res.is_empty():
-		return {}
+	var space := cam.get_world_3d().direct_space_state
+	var exclude: Array[RID] = [player.get_rid()]
+	var first := {}
+	for _i in RAY_SKIP_MAX + 1:
+		var q := PhysicsRayQueryParameters3D.create(from, to, PICK_LAYER, exclude)
+		q.collide_with_bodies = true
+		q.collide_with_areas = false
+		var res := space.intersect_ray(q)
+		if res.is_empty():
+			break
+		var hit := _hit_info(res)
+		if first.is_empty():
+			first = hit
+		if _allowed(String(hit.action)):
+			return hit
+		exclude.append(res.rid)
+	return first
+
+
+func _hit_info(res: Dictionary) -> Dictionary:
 	var col = res.collider
 	var action := ""
 	var node = null
@@ -509,8 +527,10 @@ func _blocked() -> bool:
 func _add_standing_picks(hall: Node) -> void:
 	if hall == null:
 		return
-	var chair_body := hall.get_node_or_null("Chair04/ChairCollision")
+	var chair_body := hall.get_node_or_null("Chair04/ChairCollision") as CollisionObject3D
 	if chair_body != null:
+		# Physical (layer 1, the walking collision) and a pick (PICK_LAYER, spec 6.4).
+		chair_body.collision_layer = 1 | PICK_LAYER
 		chair_body.set_meta("action", "chair_04")
 	for pair in [["SupervisorDoor", "door_supervisor"], ["ExitDoor", "door_exit"]]:
 		var door := hall.get_node_or_null(pair[0]) as Node3D
