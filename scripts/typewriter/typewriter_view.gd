@@ -10,6 +10,10 @@ extends Node
 ## so it receives window input. The typing camera is a Camera3D added to the hall
 ## root, inside the pipeline world.
 ##
+## Text assist (spec 6.5, 16.3): in the typing view, a plain panel to the right of the paper shows the
+## same text (TextAssist, the same helper as the read view). It follows SaveSystem's "text_assist"
+## setting, and the text_assist property when SaveSystem has none.
+##
 ## Setup: add this node to the main tree, then setup(hall, player_camera, pipeline).
 ## Entry points for the interaction (M3):
 ##   open_typing_view(doc_id = "") -> bool  Typewriter click. With a sheet loaded, enters the
@@ -39,6 +43,7 @@ const DocRenderer := preload("res://scripts/doc/doc_renderer.gd")
 const PaperQuad := preload("res://scripts/doc/paper_quad.gd")
 const TypewriterSounds := preload("res://scripts/typewriter/typewriter_sounds.gd")
 const TextTex := preload("res://scripts/world/text_texture.gd")
+const TextAssistScript := preload("res://scripts/doc/text_assist.gd")
 
 signal opened
 signal closed
@@ -65,6 +70,11 @@ const LEVER_PICK_PX := 26.0
 const LOAD_OFFSET := Vector3(0.0, 0.12, 0.10)
 const EJECT_OFFSET := Vector3(0.0, 0.30, 0.12)
 const INTERNAL_RES := Vector2(320, 240)
+## Text assist panel placement and wheel step, the same as ReadView (spec 6.5).
+const ASSIST_GAP := 16.0
+const ASSIST_MAX_W := 360.0
+const ASSIST_MIN_W := 160.0
+const ASSIST_SCROLL_STEP := 60.0
 
 const PH_FREE := 0
 const PH_LOADING := 1
@@ -122,11 +132,27 @@ var _pl_from := 0.0
 var _pl_t := 0.0
 var _pl_ms := 0.0
 var _platen_extra := 0.0
+var _esc_queued := false  # Esc pressed during the load or the tween in; the exit runs at the typing pose
+var _assist_layer: CanvasLayer = null
+var _assist: Control = null
+var _assist_dirty := true  # the paper text changed since the panel last showed it
+var _assist_scroll := 0.0
+
+## Used when SaveSystem has no "text_assist" setting (spec 16.3).
+var text_assist := false
+## Dev override for tests and screenshots: -1 uses the setting, 0 off, 1 on.
+var text_assist_override := -1
 
 
 func _ready() -> void:
 	_renderer = DocRenderer.new()
 	add_child(_renderer)
+	_assist_layer = CanvasLayer.new()
+	_assist_layer.layer = 2  # above the pipeline's presentation layer (layer 1)
+	add_child(_assist_layer)
+	_assist = TextAssistScript.new()
+	_assist.visible = false
+	_assist_layer.add_child(_assist)
 	var gs = _autoload("GameState")
 	if gs != null:
 		model.rng = gs.rng
@@ -290,6 +316,7 @@ func load_sheet(doc_id: String) -> bool:
 	_loaded = true
 	_sheet_id = doc_id
 	_dirty = true
+	_assist_scroll = 0.0
 	gs.place(doc_id, "typewriter")
 	if _paper != null:
 		_paper.visible = true
@@ -412,6 +439,7 @@ func _step(dt: float) -> void:
 	_sounds.tick(now)
 	if _dirty and _loaded:
 		_refresh_paper()
+	_update_assist()
 	_apply_visuals()
 
 
@@ -538,6 +566,7 @@ func _apply_visuals() -> void:
 
 func _refresh_paper() -> void:
 	_dirty = false
+	_assist_dirty = true
 	if _paper == null or _renderer == null or not model.is_loaded():
 		return
 	var tex: Texture2D = _renderer.page_texture(model.original, 0)
@@ -550,14 +579,14 @@ func _refresh_paper() -> void:
 func _begin_load() -> void:
 	_phase = PH_LOADING
 	_phase_t = 0.0
+	_esc_queued = false
 	_start_paper_anim(1, LOAD_MS)
 	_sounds.play("paper_in", _sounds.position, 0.0, true)
 
 
 func _enter_typing() -> void:
 	if not _cam_ok():
-		_phase = PH_TYPING
-		opened.emit()
+		_on_typing_entered()
 		return
 	_phase = PH_CAM_IN
 	_phase_t = 0.0
@@ -580,6 +609,7 @@ func _finish_eject() -> void:
 func _finish_close() -> void:
 	_phase = PH_FREE
 	_panning = false
+	_esc_queued = false
 	if _cam_ok():
 		_cam.current = false
 	if _player_cam != null:
@@ -634,10 +664,19 @@ func _step_cam(dt: float) -> void:
 func _on_cam_done(tag: String) -> void:
 	match tag:
 		"cam_in_done":
-			_phase = PH_TYPING
-			opened.emit()
+			_on_typing_entered()
 		"cam_out_done":
 			_finish_close()
+
+
+## The typing pose is reached. An Esc pressed during the load or the tween in (_queue_esc) runs
+## the exit now, as soon as the tween has finished (spec 6.3).
+func _on_typing_entered() -> void:
+	_phase = PH_TYPING
+	opened.emit()
+	if _esc_queued:
+		_esc_queued = false
+		close_typing_view()
 
 
 ## The typing pose (spec 6.3): the camera looks at the paper from its front, about 0.36 m
@@ -664,6 +703,9 @@ func _copy_pose() -> Transform3D:
 # --- Input ------------------------------------------------------------------------------
 
 func _input(event: InputEvent) -> void:
+	if _phase == PH_LOADING or _phase == PH_CAM_IN:
+		_queue_esc(event)
+		return
 	if _phase != PH_TYPING:
 		return
 	if event is InputEventKey:
@@ -681,9 +723,30 @@ func _input(event: InputEvent) -> void:
 				_on_right_press()
 			else:
 				_on_right_release()
+		elif _is_wheel(mb) and _assist.visible:
+			if mb.pressed:
+				_scroll_assist(-ASSIST_SCROLL_STEP if mb.button_index == MOUSE_BUTTON_WHEEL_UP else ASSIST_SCROLL_STEP)
 		else:
 			return
 		get_viewport().set_input_as_handled()
+
+
+## Esc during the load and the 0.5 s tween in (spec 6.3) is taken here, so the menu does not open on
+## it. The exit is queued and runs when the typing pose is reached (_on_typing_entered). Other keys
+## and the mouse pass through as before.
+func _queue_esc(event: InputEvent) -> void:
+	if not (event is InputEventKey):
+		return
+	var k := event as InputEventKey
+	if k.keycode != KEY_ESCAPE:
+		return
+	if k.pressed and not k.echo:
+		_esc_queued = true
+	get_viewport().set_input_as_handled()
+
+
+func _is_wheel(mb: InputEventMouseButton) -> bool:
+	return mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN
 
 
 func _handle_key(k: InputEventKey) -> bool:
@@ -777,15 +840,104 @@ func _lever_hit(px: Vector2) -> bool:
 
 ## Window point to internal (SubViewport) point, the same fit as PsxPipeline's layout.
 func _window_to_internal(p: Vector2) -> Vector2:
-	var res := INTERNAL_RES
-	if _pipeline != null and _pipeline.has_method("current_resolution"):
-		res = Vector2(_pipeline.call("current_resolution"))
+	var r := _present_rect()
+	return (p - r.position) / r.size * _internal_res()
+
+
+## Internal (SubViewport) point to window point: the inverse of _window_to_internal.
+func _internal_to_window(p: Vector2) -> Vector2:
+	var r := _present_rect()
+	return r.position + p / _internal_res() * r.size
+
+
+## The window rectangle the internal picture is presented in (PsxPipeline's layout, integer scale).
+func _present_rect() -> Rect2:
+	var res := _internal_res()
 	var window := get_viewport().get_visible_rect().size
 	var fit := minf(window.x / res.x, window.y / res.y)
 	var factor := floorf(fit) if fit >= 1.0 else fit
-	var size := (res * factor).floor()
-	var origin := ((window - size) * 0.5).floor()
-	return (p - origin) / size * res
+	var sz := (res * factor).floor()
+	var origin := ((window - sz) * 0.5).floor()
+	return Rect2(origin, sz)
+
+
+func _internal_res() -> Vector2:
+	if _pipeline != null and _pipeline.has_method("current_resolution"):
+		return Vector2(_pipeline.call("current_resolution"))
+	return INTERNAL_RES
+
+
+# --- Text assist (spec 6.5, 16.3) -------------------------------------------------------
+
+func _text_assist_on() -> bool:
+	if text_assist_override >= 0:
+		return text_assist_override == 1
+	var ss: Node = _autoload("SaveSystem")
+	if ss != null and ss.has_method("get_setting"):
+		return bool(ss.call("get_setting", "text_assist"))
+	return text_assist
+
+
+## Shows the panel in the typing view only, beside the paper, with the text on the paper. The panel
+## is placed each frame, so it follows the paper when the camera pans. Its text is set when the paper
+## text changes (the same plain rows as the read view).
+func _update_assist() -> void:
+	if _phase != PH_TYPING or not _loaded or not model.is_loaded() or not _text_assist_on():
+		_assist.visible = false
+		return
+	if not _layout_assist():
+		_assist.visible = false
+		return
+	if _assist_dirty or not _assist.visible:
+		_show_assist_text()
+	_assist.visible = true
+
+
+func _show_assist_text() -> void:
+	_assist_dirty = false
+	_assist.show_page(model.original, 0)
+	# show_page resets the scroll; keep the player's place while they type.
+	_assist_scroll = minf(_assist_scroll, _assist.max_scroll())
+	_assist.scroll_by(_assist_scroll)
+
+
+func _scroll_assist(amount: float) -> void:
+	_assist.scroll_by(amount)
+	_assist_scroll = clampf(_assist_scroll + amount, 0.0, _assist.max_scroll())
+
+
+## Places the panel to the right of the paper's window rectangle, as ReadView does. Returns false
+## when the paper is not on screen.
+func _layout_assist() -> bool:
+	var pr := _paper_window_rect()
+	if pr.size.x <= 0.0 or pr.size.y <= 0.0:
+		return false
+	var win := get_viewport().get_visible_rect().size
+	var x := pr.end.x + ASSIST_GAP
+	var w := minf(ASSIST_MAX_W, win.x - x - ASSIST_GAP)
+	if w < ASSIST_MIN_W:
+		w = ASSIST_MIN_W
+		x = maxf(ASSIST_GAP, win.x - w - ASSIST_GAP)
+	_assist.position = Vector2(x, pr.position.y)
+	_assist.size = Vector2(w, pr.size.y)
+	return true
+
+
+## The paper's rectangle in window pixels: the bounding box of its four projected corners, or an
+## empty rectangle when a corner is behind the typing camera.
+func _paper_window_rect() -> Rect2:
+	if not _cam_ok() or _paper == null or not _paper.is_inside_tree():
+		return Rect2()
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for corner in [Vector2(-0.5, -0.5), Vector2(0.5, -0.5), Vector2(0.5, 0.5), Vector2(-0.5, 0.5)]:
+		var world := _paper.global_transform * Vector3(corner.x * PAPER_W, corner.y * PAPER_H, 0.0)
+		if _cam.is_position_behind(world):
+			return Rect2()
+		var p := _internal_to_window(_cam.unproject_position(world))
+		lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.y))
+		hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.y))
+	return Rect2(lo, hi - lo)
 
 
 func _held_kind() -> String:
