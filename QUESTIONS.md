@@ -772,3 +772,11 @@ Question: should the position or the view change, so that the post is in view at
 Options you see: A: keep the spec's positions and the 60 degree field of view (as built). B: change the item positions, which changes spec dimensions. C: something else.
 Decision (lead, provisional, for the owner to review): A. Both B and C change the given spec numbers, and the spec leaves the player to find things; the whoosh (8.4) is the cue.
 Placeholder in code/config: none.
+
+## QUESTION-83
+Section: §6.3 (typing view: Esc exits to free view and the paper stays loaded), §7.7 (removing paper), §6.4 (the tube receiver sends a document held in hand), §17 (no HUD, prompts or hints)
+Context: after typing, Esc leaves the typing view with the paper still loaded in the typewriter. A click on the tube receiver then does nothing, because only a document in hand is sent. A real-input probe confirmed this: the form stays loaded, the active task stays P-1, and the inbox does not change. The player gets no feedback that the paper is still loaded or that it must be released through the lever first. The spec forbids prompts and any HUD, so no hint can be added.
+Question: how should a loaded paper that is not in hand be made apparent, without a prompt or HUD?
+Options you see: A: as built. The paper stays on the carriage, drawn in the desk view, and the release lever is the only way to take it. B: Esc from the typing view also releases the paper into the hand. C: something else.
+Decision (lead, provisional, for the owner to review): A. Section 6.3 states that the paper stays loaded on Esc, and section 17 forbids prompts and indicators, so B would change a stated rule. The usability risk is recorded here for the owner, and the player guide can state the lever step in section 7.7 verbatim.
+Placeholder in code/config: none; the behaviour is as built.
