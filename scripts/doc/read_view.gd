@@ -231,6 +231,15 @@ func _scroll_by(amount: float) -> void:
 	_layout()
 
 
+## The wheel scrolls the text assist panel while its text is taller than the panel (the panel
+## clips at its edge otherwise), and the page itself, which only scrolls when it is taller than the view.
+func _wheel(amount: float) -> void:
+	if _assist.visible and _assist.max_scroll() > 0.0:
+		_assist.scroll_by(amount)
+	else:
+		_scroll_by(amount)
+
+
 func _input(event: InputEvent) -> void:
 	if not visible or _seq.is_empty():
 		return
@@ -253,10 +262,10 @@ func _input(event: InputEvent) -> void:
 		match mb.button_index:
 			MOUSE_BUTTON_WHEEL_UP:
 				if mb.pressed:
-					_scroll_by(-SCROLL_STEP)
+					_wheel(-SCROLL_STEP)
 			MOUSE_BUTTON_WHEEL_DOWN:
 				if mb.pressed:
-					_scroll_by(SCROLL_STEP)
+					_wheel(SCROLL_STEP)
 			MOUSE_BUTTON_RIGHT:
 				if mb.pressed:
 					right_clicked.emit()

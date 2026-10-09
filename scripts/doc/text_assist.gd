@@ -22,6 +22,7 @@ const COL_INK := Color("#1C1B19")
 var _rows: Array = []  # plain rows, one per document row, with BLOCK for bars
 var _wrapped: Array = []  # rows broken to the panel width
 var _wrap_w := -1.0
+var _scroll := 0.0  # px the rows are moved up by, for text taller than the panel (mouse wheel)
 var _advance := {}
 var _block_w := 0.0
 
@@ -81,7 +82,21 @@ static func _char_centre_x(t: String, i: int, hand: bool) -> float:
 func show_page(doc: Dictionary, page_index: int) -> void:
 	_rows = plain_lines(doc, page_index, DocRenderer.bars_callable())
 	_wrap_w = -1.0
+	_scroll = 0.0
 	queue_redraw()
+
+
+## Moves the text up or down by amount px (mouse wheel). The text stops at its first and last row.
+func scroll_by(amount: float) -> void:
+	_scroll = clampf(_scroll + amount, 0.0, max_scroll())
+	queue_redraw()
+
+
+## How far the text can scroll: the part of the text below the panel's bottom edge, or 0.
+func max_scroll() -> float:
+	_ensure_wrapped()
+	var total := PAD * 2.0 + _wrapped.size() * LINE_H
+	return maxf(0.0, total - size.y)
 
 
 ## The plain rows currently shown (for tests).
@@ -123,20 +138,26 @@ func _wrap(width: float) -> Array:
 	return out
 
 
-func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), COL_BG)
+func _ensure_wrapped() -> void:
 	var width := size.x - PAD * 2.0
-	if width <= 0.0:
-		return
-	if _wrap_w != width:
+	if width > 0.0 and _wrap_w != width:
 		_wrapped = _wrap(width)
 		_wrap_w = width
+
+
+func _draw() -> void:
+	draw_rect(Rect2(Vector2.ZERO, size), COL_BG)
+	if size.x - PAD * 2.0 <= 0.0:
+		return
+	_ensure_wrapped()
 	var asc := FONT.get_ascent(SIZE)
 	var desc := FONT.get_descent(SIZE)
 	for i in range(_wrapped.size()):
-		var base_y := PAD + i * LINE_H + asc
-		if base_y > size.y:
+		var base_y := PAD + i * LINE_H + asc - _scroll
+		if base_y - asc > size.y:
 			break
+		if base_y + desc < 0.0:
+			continue
 		_draw_row(String(_wrapped[i]), base_y, asc, desc)
 
 
