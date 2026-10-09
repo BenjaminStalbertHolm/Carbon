@@ -6,6 +6,8 @@ decisions are in `QUESTIONS.md`.
 
 ## Status
 
+Player controls: [docs/PLAYER_GUIDE.md](docs/PLAYER_GUIDE.md)
+
 - M0 (project setup, folder structure, autoload stubs, fonts, asset generators): done. See "Verified (M0)" below.
 - M1 (rendering pipeline: 320x240 SubViewport, PS1 spatial and post shaders, fog, resolution switching): done. See "Verified (M1)" below.
 - M2 to M11 (hall, player, typewriter, read view, redaction, stamps, tube, unseen changes, audio, front end, endings, debug console): built and wired into the game. The acceptance runner (`tests/acceptance/acceptance_runner.gd`) passes its 29 headless tests and the text check, and records spec tests 2, 3, 5, 7, 8, 9, 11 and 12 as partly manual, with the reasons in `tests/ACCEPTANCE.md`.

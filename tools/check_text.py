@@ -5,12 +5,18 @@ Diffs the exact game text printed in CARBON_SPEC.md against every string in
 the /data JSON files, after substituting the test token values on both sides.
 Standard library only.
 
-    python3 tools/check_text.py [--data-dir DIR] [--spec FILE] [--list]
+    python3 tools/check_text.py [--data-dir DIR] [--spec FILE] [--guide FILE] [--list]
 
 Prints one PASS/FAIL line per spec line checked, then the first 40 failures in
 full, then "TEXT FIDELITY: N checked, M failed". Exit 0 when M == 0, else 1.
 A missing, unreadable or malformed data file is a failure, never a crash.
 --list prints the extracted spec lines (section, kind, match mode) and exits.
+
+The player guide (docs/PLAYER_GUIDE.md, QUESTION-74) is checked too. Every line
+except headings, blank lines, the source comment, table rule rows and "> "
+lead-ins must appear verbatim inside one line of the spec, after bullet, number
+and bold markers and table pipes are removed from both sides. A lead-in must
+start with "> ", end with ":" and be at most 80 characters.
 """
 
 import argparse
@@ -326,6 +332,68 @@ def load_data(data_dir):
     return file_data, raw_json, problems
 
 
+DEFAULT_GUIDE = "/home/user/Carbon/docs/PLAYER_GUIDE.md"
+GUIDE_TITLE = "# CARBON — Controls"
+# Text the player guide must never contain (QUESTION-74 item 4): the debug row and images.
+GUIDE_FORBIDDEN = ("F9", "Debug console", "![")
+GUIDE_LEAD_MAX = 80
+GUIDE_BULLET_RE = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+")
+GUIDE_TABLE_RULE_RE = re.compile(r"^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$")
+GUIDE_COMMENT_RE = re.compile(r"^<!--.*-->$")
+GUIDE_HEADING_RE = re.compile(r"^#{1,6}\s")
+
+
+def guide_key(text):
+    """Normalise one line: bullet and number markers, bold markers and table pipes go, whitespace collapses."""
+    text = GUIDE_BULLET_RE.sub("", text, count=1)
+    text = text.replace("**", "").replace("|", " ")
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def guide_results(guide_path, spec_text):
+    """One result per checked guide line (QUESTION-74). Structure is not checked: headings,
+    blank lines, the source comment and table rule rows. A "> " lead-in is checked for
+    shape and length only. Every other line must appear verbatim in one spec line."""
+    try:
+        with open(guide_path, encoding="utf-8") as fh:
+            guide_text = fh.read()
+    except OSError as exc:
+        return [make_result("-", "guide", f"guide unreadable: {guide_path}: {exc}", "guide", False)]
+    lines = guide_text.split("\n")
+    results = []
+    title_ok = GUIDE_TITLE in [ln.rstrip() for ln in lines]
+    results.append(make_result("-", "guide", f"guide has the title line: {GUIDE_TITLE}",
+                               "guide", title_ok, None if title_ok else "(title line missing)"))
+    spec_keys = [k for k in (guide_key(ln) for ln in spec_text.split("\n")) if k]
+    for lineno, raw in enumerate(lines, 1):
+        line = raw.rstrip()
+        stripped = line.strip()
+        if not stripped or GUIDE_HEADING_RE.match(stripped) or GUIDE_COMMENT_RE.match(stripped):
+            continue
+        tag = f"line {lineno}"
+        if line.startswith(">"):
+            ok = line.startswith("> ") and line.endswith(":") and len(line) <= GUIDE_LEAD_MAX
+            results.append(make_result(tag, "lead-in", line, "lead-in", ok,
+                                       None if ok else "a lead-in starts with '> ', ends with ':' and is short"))
+            continue
+        if GUIDE_TABLE_RULE_RE.match(stripped):
+            continue
+        want = guide_key(line)
+        hits = [w for w in GUIDE_FORBIDDEN if w in line]
+        if hits:
+            results.append(make_result(tag, "guide", want, "verbatim", False,
+                                       f"forbidden text in the guide: {hits}"))
+            continue
+        if not want:
+            results.append(make_result(tag, "guide", stripped, "verbatim", False,
+                                       "(nothing left after removing markers)"))
+            continue
+        ok = any(want in k for k in spec_keys)
+        results.append(make_result(tag, "guide", want, "verbatim", ok,
+                                   None if ok else closest_match(want, spec_keys)))
+    return results
+
+
 def shorten(text):
     return text if len(text) <= LINE_WIDTH else text[:LINE_WIDTH - 3] + "..."
 
@@ -334,6 +402,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="CARBON text-fidelity checker (test 13).")
     parser.add_argument("--data-dir", default=DEFAULT_DATA_DIR)
     parser.add_argument("--spec", default=DEFAULT_SPEC)
+    parser.add_argument("--guide", default=DEFAULT_GUIDE,
+                        help="player guide checked against the spec (QUESTION-74)")
     parser.add_argument("--list", action="store_true",
                         help="print the extracted spec lines and exit")
     args = parser.parse_args(argv)
@@ -366,6 +436,7 @@ def main(argv=None):
     credit = credits_result(raw_json, spec_text)
     if credit is not None:
         results.append(credit)
+    results += guide_results(args.guide, spec_text)
 
     kinds = Counter(r["kind"] for r in results)
     print("BY KIND: " + ", ".join(f"{k}={kinds[k]}" for k in sorted(kinds)))
