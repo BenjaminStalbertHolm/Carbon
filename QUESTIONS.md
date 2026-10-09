@@ -679,3 +679,32 @@ Also, §20 says to record results in `/tests/ACCEPTANCE.md`, not `tests/acceptan
 Placeholder in code/config: does not match.
 - Add `tests/acceptance/test_full_loudness.gd` and `tests/acceptance/test_continue_day3.gd`, or extend `tests/acceptance/acceptance_runner.gd`.
 - Move `tests/acceptance/ACCEPTANCE.md` to `tests/ACCEPTANCE.md` and update references to it (`acceptance_runner.gd`, any scripts).
+
+## QUESTION-74
+Section: §12 (input map) with §2.2, §6.4, §17, §18 and §0 rule 1
+Context: The owner reports that a first-time player has no idea how to operate the game. The controls exist only in §12. §6.4 has no crosshair, prompt or highlight, and §2.2, §17 and §18 forbid a HUD, crosshair, prompts, tooltips, tutorials, hints and subtitles. §0 rule 1 forbids text the spec does not contain. The only text before play is the content note (§16.1) and the title and folder (§16.2).
+Question: How should a player guide be provided without breaking the spec?
+Options you see: A: a player guide outside the game, as a repository document (e.g. docs/PLAYER_GUIDE.md, linked from README), listing only §12 controls and §16.2/§16.3 labels verbatim, with no in-game text and not part of any export / B: an in-game guide or control card, which breaks §17 and §18 and needs a spec change first / C: something else
+
+Decision (opus-agent): A — an out-of-game player guide. It adds nothing to the game: no player-visible in-game text, no HUD or prompt. So §0 rule 1, §2.2, §17 and §18 (which govern what the game shows) all stay intact, and no spec change or owner approval is needed. B would need the owner to change §17 and §18, and the owner cannot be reached for that.
+Instructions for the implementer:
+1. File: `docs/PLAYER_GUIDE.md`, title `# CARBON — Controls`. Add one line to `README.md` linking to it ("Player controls: docs/PLAYER_GUIDE.md"). The guide may also be published next to a download (store page, a text file beside the zip), but never inside the game, the `.pck` or any scene.
+2. Export: add `docs/*` to `exclude_filter` in all three presets in `export_presets.cfg` (e.g. `tests/*,docs/*`), so the file cannot enter a build.
+3. Sections, in this order. Copy tables and sentences verbatim from `CARBON_SPEC.md`, correcting only Markdown formatting:
+   a. "Controls": the §12 table (Action / Binding / Context), every row, plus "No rebinding." Omit the `Debug console | F9` row (debug builds only, §21).
+   b. "Sitting and standing": from §6.2, the bullets on SEATED, STANDING (first sentence, plus "WASD move at 1.6 m/s, no running, no jumping, no crouching."), "Return to SEATED" and "Desk 4 interactions ... only work while SEATED".
+   c. "Views": the three numbered items of §6.3.
+   d. "Interacting": from §6.4, the "Cursor", "Interactable highlight" and "Held item" bullets, the Desk items table, and the hold-to-pick-up bullet ("Documents from the inbox and read stack can be picked up ...").
+   e. "The typewriter": the §7.4 key table, the §7.2 accepted-characters sentence, and the §7.5 bullets on clicking a field and `Enter` in a form.
+   f. "Menus and settings": the §16.2 option labels (`BEGIN`, `CONTINUE — {DAYNAME}`, `SETTINGS`, `QUIT`; folder: `RESUME`, `SETTINGS`, `QUIT TO TITLE`, `QUIT TO DESKTOP`), the sentence on selection with `> `, "Esc in free view opens the menu folder", and the §16.3 settings table (Setting / Values / Default) with its first sentence.
+   One short neutral lead-in sentence per section is allowed only if it states where the list applies (e.g. "While seated at your desk:"). Allowed in the guide only: the content note text of §16.1 and §17's list of accessibility options. Nothing else.
+4. Never include:
+   - story, premise, names, documents, tasks, memos, days' content or endings (§1 premise, §13–§15);
+   - what any action leads to beyond its immediate effect, the consequences of redaction, stamps, carbons or refusal (§8.3–§8.9), unseen changes, gaze or ghost typing (§9–§10), or the retired word (§8.8);
+   - which stamp band means which word (§5.4: "Stamp identity is learned by the impression they make");
+   - hidden quantities: the correction fluid's 12 uses, tray counts, accuracy thresholds, the 80% redaction rule;
+   - solutions, hints, recommendations or "tips";
+   - any debug command (§21);
+   - screenshots or images.
+5. Upkeep: put a comment at the top, `<!-- Source: CARBON_SPEC.md §6.2–§6.4, §7.2, §7.4, §7.5, §12, §16.1–§16.3, §17. Update verbatim if those sections change. -->`. Extend the §20 test 13 text-fidelity script, or add a check, to diff the guide's quoted text against those sections.
+Placeholder in code/config: no in-game change. Add `docs/PLAYER_GUIDE.md`, add the link line in `README.md`, and add `docs/*` to the `exclude_filter` of all three presets in `export_presets.cfg`.
