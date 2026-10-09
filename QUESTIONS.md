@@ -708,3 +708,67 @@ Instructions for the implementer:
    - screenshots or images.
 5. Upkeep: put a comment at the top, `<!-- Source: CARBON_SPEC.md §6.2–§6.4, §7.2, §7.4, §7.5, §12, §16.1–§16.3, §17. Update verbatim if those sections change. -->`. Extend the §20 test 13 text-fidelity script, or add a check, to diff the guide's quoted text against those sections.
 Placeholder in code/config: no in-game change. Add `docs/PLAYER_GUIDE.md`, add the link line in `README.md`, and add `docs/*` to the `exclude_filter` of all three presets in `export_presets.cfg`.
+
+## QUESTION-75
+Section: §6.4 (interaction model, the centre-ray aim) with §5.4 and §6.1 (the desk and chair bodies)
+Context: the desk box (1.40 x 0.74 x 0.75 m, front face at z 0.375) contains the drawer fronts (z 0.36 to 0.37), and the chair body box hides the lower drawer from the seat. The centre ray therefore hit the desk, so the drawers, the notebook and carbon filing (8.5) could not be clicked. The QA run confirmed this with real input.
+Question: which body takes the aim where a pick sits inside solid furniture?
+Options you see: (a) a shallower desk box (depth 0.70); (b) drawer picks win over solid furniture; (c) the aim considers only interactable bodies, and a pick that is unusable in the current pose is skipped
+Decision (lead, provisional, pending owner review): (c). It keeps the geometry and the walking collision as they are, and changes no visible object. The chair's body is also on the pick layer, so the chair still takes its own click.
+Placeholder in code/config: implemented in scripts/player/interaction.gd (the aim casts against the pick layer only, with RAY_SKIP_MAX re-casts past unusable picks), and scripts/world/chair.gd's body is on the pick layer as well.
+
+## QUESTION-76
+Section: §6.4 (the desk items table, read stack) with §6.1
+Context: from the seat, the empty copyholder and the empty inbox tray stand in front of the read stack. Their clicks do nothing when nothing is in hand, so the aim at the read stack was blocked: about 4 of 25 aim points reached it.
+Question: should a pick whose click does nothing in the current state let the aim pass to the item behind it?
+Options you see: A: the item blocks the aim, as before. B: such a pick is skipped by the aim (an active copyholder, one with a document in hand or clipped, still blocks).
+Decision (lead, provisional, pending owner review): B. Only what the ray can reach changes; no click does anything new.
+Placeholder in code/config: implemented in scripts/player/interaction.gd by the inert-pick rule (see the test in tests/player/test_inert_picks.gd).
+
+## QUESTION-77
+Section: §6.4 and §12 (the spec does not say what happens when the window loses focus)
+Context: the mouse was re-captured every frame, so a player who alt-tabbed came back to a captured cursor with no way to release it except Esc.
+Question: what should the mouse and input do when the window loses focus?
+Options you see: (a) release the mouse on focus loss, and restore the mode for the current view on return, with no pause; (b) keep it captured; (c) pause the clock.
+Decision (lead, provisional): (a). It adds no HUD and no pause, and the spec gives no pause for focus loss.
+Placeholder in code/config: implemented in scripts/main.gd (focus signals release the capture, and the mode for the current view returns on focus).
+
+## QUESTION-78
+Section: §3.1 (the window size)
+Context: the default window of 1280 x 960 is taller than the usable height of a common 1440 x 900 laptop screen, so the bottom of the view may be off screen.
+Question: should the default window size change?
+Options you see: (a) keep 1280 x 960; (b) 960 x 720 (a whole-number 3x of 320 x 240, still 4:3); (c) start fitted to the screen.
+Decision (lead, provisional, for the owner to decide): (a), unchanged. The spec gives 1280 x 960 as the project default, and changing it is the owner's call.
+Placeholder in code/config: none.
+
+## QUESTION-79
+Section: §15.1 step 6 with §4.1 and §16.3 (the internal resolution during the final shot)
+Context: §15.1 step 6 gives the final shot's internal resolution as LOW. §4.1 and §16.3 say that HIGH forces 640 x 480 everywhere.
+Question: which rule holds during the final shot when HIGH is set?
+Options you see: A: the final shot uses LOW, the specific rule (as built). B: HIGH everywhere, the general rule.
+Decision (lead, provisional): A. The specific rule governs the one shot it names.
+Placeholder in code/config: none; the shot is set to LOW as built (scripts/endings/endings_presentation.gd).
+
+## QUESTION-80
+Section: §13.1 with §11.2 (the ambient beds during the day transition)
+Context: §11.2 gives the beds' days but not whether they play during the black day transition (13.1 steps 1 to 5). §16.2 silences the beds only on the title.
+Question: do the room tone, hum and vent beds keep playing through the black transition, or stop at the fade to black?
+Options you see: A: they keep playing, and the next day start sets their pitch, hum level and vent. B: they stop at the fade to black and start again at the next day start.
+Decision (lead, provisional): A. The spec names no stop point other than the title.
+Placeholder in code/config: none; the beds run as built (scripts/main.gd, _start_day_beds and _stop_beds).
+
+## QUESTION-81
+Section: §8.12 with §15.1 step 6 and §15.2 step 4 (the flicker of F2 and the endings)
+Context: §8.12 gives F2 a flicker on Day 5. §15.1 step 6 says "F2 lit (no flicker)" and §15.2 step 4 says "no flicker". §15.3 says nothing about flicker.
+Question: does F2's Day 5 flicker continue during Ending A's steps 1 and 2, before F2 switches off?
+Options you see: A: flicker runs until the no-flicker shot holds the fixture. B: all flicker stops when an ending starts.
+Decision (lead, provisional): A. It keeps the flicker until the spec's own shot calls for none.
+Placeholder in code/config: implemented in scripts/endings/endings_presentation.gd (the final shot and the duplicate hall hold their fixtures; release_fixture_holds on every new game and continue).
+
+## QUESTION-82
+Section: §5.4 and §6.1 (the position of the inbox tray and the tube receiver), with §6.2 (the 60 degree vertical field of view)
+Context: from the seat at the start, the inbox tray sits just off the left edge of the 1280 x 960 view, and the tube receiver near the left edge. The morning canister arrives at the receiver after about 10 s. A player who does not turn left may miss the post.
+Question: should the position or the view change, so that the post is in view at the start?
+Options you see: A: keep the spec's positions and the 60 degree field of view (as built). B: change the item positions, which changes spec dimensions. C: something else.
+Decision (lead, provisional, for the owner to review): A. Both B and C change the given spec numbers, and the spec leaves the player to find things; the whoosh (8.4) is the cue.
+Placeholder in code/config: none.
