@@ -80,6 +80,8 @@ func set_credits_enabled(on: bool) -> void:
 
 ## A new game or a continue: no ending has run and the flags are back to normal.
 func reset() -> void:
+	if presentation != null and presentation.has_method("release_fixture_holds"):
+		presentation.release_fixture_holds()
 	ro5_sent = false
 	refused = false
 	exit_unlocked = false

@@ -12,6 +12,7 @@ const ClerkFigure := preload("res://scripts/world/clerk_figure.gd")
 const TypewriterView := preload("res://scripts/typewriter/typewriter_view.gd")
 const Doc := preload("res://scripts/logic/doc_model.gd")
 const Content := preload("res://scripts/logic/content.gd")
+const FixtureModel := preload("res://scripts/world/fixture.gd")
 
 ## Gains (QUESTION-24, QUESTION-58, QUESTION-68). The scripted sounds are not player-caused, so Rule A
 ## applies, and each gain is set by the sound's attack. Ending A's paper_in (Hann rise, about 240 ms
@@ -248,6 +249,7 @@ func camera_to_free(_seconds: float) -> void:
 ## (1.5 s, QUESTION-59) brings the shot in, so it is not cut to.
 func final_shot() -> void:
 	_set_fixture(2, true)
+	_hold_fixtures([2])
 	_refresh_hum()
 	var gs = _autoload("GameState")
 	if gs != null:
@@ -326,6 +328,7 @@ func duplicate_hall_set() -> void:
 		exit_door.reset_closed_locked()
 	for f in range(1, 7):
 		_set_fixture(f, true)
+	_hold_fixtures([1, 2, 3, 4, 5, 6])
 	_refresh_hum()
 	var gs = _autoload("GameState")
 	if gs != null:
@@ -425,6 +428,26 @@ func _node_3d(path: String) -> Node3D:
 
 
 # --- Helpers -------------------------------------------------------------------------------------
+
+## Holds fixtures at constant m for the "no flicker" shots (spec 15.1 step 6, 15.2 step 4).
+func _hold_fixtures(indices: Array) -> void:
+	if hall == null:
+		return
+	for f in indices:
+		var light := hall.get_node_or_null("Fixture%d" % int(f)) as OmniLight3D
+		if light != null:
+			FixtureModel.set_held(light, true)
+
+
+## Releases every fixture hold. The endings controller calls it on every new game and continue.
+func release_fixture_holds() -> void:
+	if hall == null:
+		return
+	for f in range(1, 7):
+		var light := hall.get_node_or_null("Fixture%d" % f) as OmniLight3D
+		if light != null:
+			FixtureModel.set_held(light, false)
+
 
 func _set_fixture(index: int, on: bool) -> void:
 	var gs = _autoload("GameState")
