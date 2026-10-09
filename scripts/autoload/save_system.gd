@@ -49,9 +49,19 @@ var settings_path: String = SETTINGS_PATH
 var _settings: Dictionary = {}
 var _extra_writers: Dictionary = {}
 var _extra_readers: Dictionary = {}
+var _observed_fullscreen := false  # the window mode seen at the last poll
+var _fs_pending := false  # a request for the wanted window mode has not yet been held
+var _fs_asked_ms := 0  # when the request was sent
+var _fs_last_send_ms := 0  # when the request was last sent
+var _fs_held_ms := -1  # when the window first showed the wanted mode while the request was pending (-1: not yet)
+
+const FULLSCREEN_HOLD_MS := 1000  # the wanted mode must hold this long before the window's own changes count
+const FULLSCREEN_SETTLE_MS := 5000  # the request is given up after this long
+const FULLSCREEN_RETRY_MS := 500  # while the request is pending, it is sent again after this
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS  # the window mode is followed while the menu folder pauses the tree
 	load_settings()
 	var director = _autoload("DayDirector")
 	if director != null:
@@ -200,20 +210,27 @@ func get_setting(key: String) -> Variant:
 
 
 ## Stores one setting and writes the file at once. Returns false when the file
-## could not be written. Unknown keys are refused.
+## could not be written. Unknown keys are refused. Only the setting that changed is applied.
 func set_setting(key: String, value: Variant) -> bool:
 	if not SETTING_DEFAULTS.has(key):
 		push_error("SaveSystem: unknown setting %s" % key)
 		return false
 	var clean: Variant = _clean(key, value)
+	var ok := _store(key, clean)
+	if key == "master_volume":
+		_apply_volume()
+	elif key == "fullscreen":
+		_request_fullscreen(bool(clean))
+	setting_changed.emit(key, clean)
+	return ok
+
+
+func _store(key: String, clean: Variant) -> bool:
 	_settings[key] = clean
 	var cfg := ConfigFile.new()
 	cfg.load(settings_path)  # a missing file is fine; the other keys stay
 	cfg.set_value(SETTINGS_SECTION, key, clean)
-	var ok := cfg.save(settings_path) == OK
-	_apply_settings()
-	setting_changed.emit(key, clean)
-	return ok
+	return cfg.save(settings_path) == OK
 
 
 ## Spec 16.3 ranges: mouse sensitivity 0.1 to 2.0 in steps of 0.1, master volume
@@ -229,12 +246,83 @@ static func _clean(key: String, value: Variant) -> Variant:
 
 
 func _apply_settings() -> void:
+	_apply_volume()
+	if _is_headless():
+		return
+	# Only asks the window when it is not already in the wanted mode, so a window that was made
+	# fullscreen another way is not turned back at a title load.
+	if _window_is_fullscreen() != bool(get_setting("fullscreen")):
+		_request_fullscreen(bool(get_setting("fullscreen")))
+	_observed_fullscreen = _window_is_fullscreen()
+
+
+func _apply_volume() -> void:
 	var bus := AudioServer.get_bus_index("Master")
 	if bus >= 0:
 		AudioServer.set_bus_volume_db(bus, linear_to_db(float(get_setting("master_volume")) / 100.0))
-	if DisplayServer.get_name() != "headless":
-		var mode := DisplayServer.WINDOW_MODE_FULLSCREEN if bool(get_setting("fullscreen")) else DisplayServer.WINDOW_MODE_WINDOWED
-		DisplayServer.window_set_mode(mode)
+
+
+func _request_fullscreen(on: bool) -> void:
+	if _is_headless():
+		return
+	_send_window_mode(on)
+	_fs_pending = true
+	_fs_asked_ms = Time.get_ticks_msec()
+	_fs_last_send_ms = _fs_asked_ms
+	_fs_held_ms = -1
+
+
+func _send_window_mode(on: bool) -> void:
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if on else DisplayServer.WINDOW_MODE_WINDOWED)
+
+
+## Spec 16.3: the FULLSCREEN setting reflects the real window mode. A change made another way (the
+## green button, Ctrl+Cmd+F, a window manager) is taken into the setting and saved. A new request is
+## sent again while the window has not shown its mode; once it has shown it for FULLSCREEN_HOLD_MS
+## (a window can revert once at start), or after FULLSCREEN_SETTLE_MS, the window's mode is the truth.
+func _process(_delta: float) -> void:
+	if _is_headless():
+		return
+	var real := _window_is_fullscreen()
+	var want := bool(get_setting("fullscreen"))
+	var now := Time.get_ticks_msec()
+	if _fs_pending:
+		if real == want:
+			if _fs_held_ms < 0:
+				_fs_held_ms = now
+			if now - _fs_held_ms >= FULLSCREEN_HOLD_MS:
+				_fs_pending = false
+		else:
+			_fs_held_ms = -1
+			if now - _fs_asked_ms >= FULLSCREEN_SETTLE_MS:
+				_fs_pending = false
+			elif now - _fs_last_send_ms >= FULLSCREEN_RETRY_MS:
+				_fs_last_send_ms = now
+				_send_window_mode(want)
+		if _fs_pending:
+			_observed_fullscreen = real
+			return
+	if real != _observed_fullscreen:
+		_observed_fullscreen = real
+		_adopt_fullscreen(real)
+	elif real != want:
+		_adopt_fullscreen(real)
+
+
+func _adopt_fullscreen(real: bool) -> void:
+	if bool(get_setting("fullscreen")) == real:
+		return
+	_store("fullscreen", real)
+	setting_changed.emit("fullscreen", real)
+
+
+func _window_is_fullscreen() -> bool:
+	var mode := DisplayServer.window_get_mode()
+	return mode == DisplayServer.WINDOW_MODE_FULLSCREEN or mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+
+
+func _is_headless() -> bool:
+	return DisplayServer.get_name() == "headless"
 
 
 # --- Helpers -------------------------------------------------------------------------

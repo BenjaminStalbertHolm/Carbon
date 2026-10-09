@@ -81,10 +81,13 @@ var _running := false
 var _typing_flag := false
 var _transition := false
 var _read_doc_id := ""
+var _window_focused := true  # false while another window has focus (see _on_window_focus_exited)
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	get_window().focus_exited.connect(_on_window_focus_exited)
+	get_window().focus_entered.connect(_on_window_focus_entered)
 	_build()
 	# Debug builds only (spec 21): the debug console goes on the root. Its path is assembled at run
 	# time so that no release export carries the file name; release builds never reach this block.
@@ -201,6 +204,7 @@ func _build() -> void:
 	menu.name = "MenuFolder"
 	add_child(menu)
 	menu.pause_requested.connect(_on_pause_requested)
+	menu.quit_to_title_confirmed.connect(_on_quit_to_title)
 
 	black = BLACK_SCENE.instantiate()
 	black.name = "BlackScreen"
@@ -259,6 +263,25 @@ func _wire_world_systems() -> void:
 	var gs = _gs()
 	if gs != null:
 		gs.state_changed.connect(_sync_typewriter_sheet)
+	var ss = _autoload("SaveSystem")
+	if ss != null:
+		ss.setting_changed.connect(_on_setting_changed)
+	_apply_render_settings()
+
+
+## Spec 16.3: INTERNAL RESOLUTION and DITHER take effect at once. The endings set LOW for the final
+## shot, so the settings are applied again at each day start (_begin_running).
+func _apply_render_settings() -> void:
+	var ss = _autoload("SaveSystem")
+	if ss == null or pipeline == null:
+		return
+	pipeline.set_high_resolution(bool(ss.get_setting("internal_high")))
+	pipeline.set_dither(bool(ss.get_setting("dither")))
+
+
+func _on_setting_changed(key: String, _value: Variant) -> void:
+	if key == "internal_high" or key == "dither":
+		_apply_render_settings()
 
 
 # --- Front-end flow (spec 16.1, 16.2, 13.1) ---------------------------------------------
@@ -348,6 +371,7 @@ func _on_day_ended(day: int) -> void:
 func _begin_running() -> void:
 	_transition = false
 	_running = true
+	_apply_render_settings()
 
 
 ## Test and dev hook: starts a new game without the front end. The DayDirector timeline stays
@@ -459,7 +483,10 @@ func lamp_locked() -> bool:
 
 func _sync_focus() -> void:
 	var focus := is_focus_open() or not _running
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if focus else Input.MOUSE_MODE_CAPTURED
+	# Losing focus is not in the spec (draft QUESTION "focus loss", not yet numbered): the mouse is released while the window is in the
+	# background, and the mode for the current view comes back when the window has focus again.
+	if _window_focused:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if focus else Input.MOUSE_MODE_CAPTURED
 	pipeline.set_focus_view(_typing_flag or (read_view != null and read_view.is_open()))
 	var ending_off: bool = endings != null and endings.input_off()
 	var desk_off: bool = endings != null and endings.desk_locked()
@@ -479,8 +506,26 @@ func _sync_gaze_and_ghosts() -> void:
 		ghost_typer.set_active(_running)
 
 
+func _on_window_focus_exited() -> void:
+	_window_focused = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+func _on_window_focus_entered() -> void:
+	_window_focused = true
+	_sync_focus()
+
+
 func _on_pause_requested(paused: bool) -> void:
 	get_tree().paused = paused
+
+
+## Spec 16.2: QUIT TO TITLE after YES. The day stops where it is and nothing mid-day is written (spec
+## 16.4), so CONTINUE restarts the day from its autosave and BEGIN starts over. The title takes the screen.
+func _on_quit_to_title() -> void:
+	_running = false
+	_transition = false
+	title.show_title()
 
 
 ## Spec 15.4: the credits are over and the save is gone. Back to the title (spec 16.2).
@@ -490,6 +535,7 @@ func _on_endings_returned() -> void:
 	if endings != null:
 		endings.reset()
 	black.set_shade(1.0)
+	_apply_render_settings()
 	title.show_title()
 
 
