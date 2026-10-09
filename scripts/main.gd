@@ -297,7 +297,7 @@ func _boot() -> void:
 	await note.run()
 	note.queue_free()
 	black.visible = true
-	title.show_title()
+	_show_title()
 
 
 func _on_new_game() -> void:
@@ -372,6 +372,47 @@ func _begin_running() -> void:
 	_transition = false
 	_running = true
 	_apply_render_settings()
+	_start_day_beds()
+
+
+## Spec 11.2, 8.12, 9.3: the day's beds start with the world. Room tone and hum play on Days 1-5, the vent
+## on Days 4-5 only (GameState.vent_on, set by DayDirector.begin_day). The hum takes the day's pitch and the
+## lit fixtures (spec 8.12). A bed that already plays is left as it is.
+func _start_day_beds() -> void:
+	var ad = _autoload("AudioDirector")
+	var gs = _gs()
+	if ad == null or gs == null:
+		return
+	ad.set_hum_pitch(int(gs.day))
+	ad.set_fixtures_lit(_lit_fixture_count())
+	ad.set_vent_active(bool(gs.vent_on))
+	ad.start_bed("room_tone")
+	ad.start_bed("hum")
+
+
+## Spec 16.2: the title has no background audio, so every bed stops when the title is shown. The next day start restarts them.
+func _stop_beds() -> void:
+	var ad = _autoload("AudioDirector")
+	if ad == null:
+		return
+	for bed in ["room_tone", "hum", "vent_shepard"]:
+		ad.stop_bed(bed)
+
+
+## Stops the beds, then shows the title (spec 16.2).
+func _show_title() -> void:
+	_stop_beds()
+	title.show_title()
+
+
+## The lit fixtures of the day, from GameState.fixture_lit (spec 8.12). Six when all are lit.
+func _lit_fixture_count() -> int:
+	var gs = _gs()
+	var lit := 0
+	for f in range(1, 7):
+		if bool(gs.fixture_lit.get(str(f), false)):
+			lit += 1
+	return lit
 
 
 ## Test and dev hook: starts a new game without the front end. The DayDirector timeline stays
@@ -525,7 +566,7 @@ func _on_pause_requested(paused: bool) -> void:
 func _on_quit_to_title() -> void:
 	_running = false
 	_transition = false
-	title.show_title()
+	_show_title()
 
 
 ## Spec 15.4: the credits are over and the save is gone. Back to the title (spec 16.2).
@@ -536,7 +577,7 @@ func _on_endings_returned() -> void:
 		endings.reset()
 	black.set_shade(1.0)
 	_apply_render_settings()
-	title.show_title()
+	_show_title()
 
 
 # --- Read view -------------------------------------------------------------------------

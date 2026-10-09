@@ -22,10 +22,12 @@ func setup(parent: Node) -> void:
 	for i in POOL_SIZE:
 		var flat := AudioStreamPlayer.new()
 		flat.bus = SFX_BUS
+		flat.process_mode = Node.PROCESS_MODE_PAUSABLE
 		parent.add_child(flat)
 		_flat.append(flat)
 		var spatial := AudioStreamPlayer3D.new()
 		spatial.bus = SFX_BUS
+		spatial.process_mode = Node.PROCESS_MODE_PAUSABLE
 		configure_spatial(spatial)
 		parent.add_child(spatial)
 		_spatial.append(spatial)
@@ -112,6 +114,8 @@ func active_count() -> int:
 func reparent_all(parent: Node) -> void:
 	for p in _flat + _spatial:
 		p.reparent(parent, true)
+		# The menu folder pauses the tree, and the one-shots pause with it (spec 16.2).
+		p.process_mode = Node.PROCESS_MODE_PAUSABLE
 
 
 func _holds_loop(player: Node) -> bool:

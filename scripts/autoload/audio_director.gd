@@ -50,6 +50,9 @@ func _ready() -> void:
 	SfxPool.configure_spatial(vent)
 	add_child(vent)
 	vent.global_position = VENT_POSITION
+	# The vent is moved under the pipeline's world, whose parent is PROCESS_MODE_ALWAYS (main.gd), so it
+	# would not pause with the menu folder (spec 16.2: all audio pauses). Pausable on its own fixes that.
+	vent.process_mode = Node.PROCESS_MODE_PAUSABLE
 	_beds["vent_shepard"] = vent
 	for bed_name in _beds.keys():
 		_bed_ramp[bed_name] = 1.0
