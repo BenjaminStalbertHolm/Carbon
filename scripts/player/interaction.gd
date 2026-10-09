@@ -468,8 +468,9 @@ func _open_held_document() -> void:
 
 ## Centre-screen ray (spec 6.4). Returns {action, node, pos} or {} when nothing is hit.
 ## Only pick bodies (PICK_LAYER) are tested, so the desk box, the walls and the chair bodies never
-## hide an item. A pick the player cannot use in this pose (the chair while seated, spec 6.2) is
-## skipped, so it does not hide what is behind it (the lower drawer). With no usable pick on the
+## hide an item. A pick the player cannot use in this pose (the chair while seated, spec 6.2), or
+## whose click does nothing in the current state (_is_inert), is skipped, so it does not hide what is
+## behind it (the lower drawer, the read stack behind an empty inbox). With no usable pick on the
 ## ray, the first pick hit is returned, as before.
 func _raycast() -> Dictionary:
 	if player == null:
@@ -492,7 +493,7 @@ func _raycast() -> Dictionary:
 		var hit := _hit_info(res)
 		if first.is_empty():
 			first = hit
-		if _allowed(String(hit.action)):
+		if _allowed(String(hit.action)) and not _is_inert(String(hit.action)):
 			return hit
 		exclude.append(res.rid)
 	return first
@@ -518,6 +519,34 @@ func _allowed(action: String) -> bool:
 	if STANDING_ACTIONS.has(action):
 		return player.is_standing()
 	return player.is_seated()
+
+
+## A pick whose click does nothing in the current state (spec 6.4 table). The ray skips it, so it
+## does not hide the pick behind it (the same skip as _allowed). Clicks are not changed: a click on
+## an inert pick is dispatched as before, and does nothing. Rules:
+## inbox with no documents; read stack empty with nothing in hand; carbon spot with no carbons while
+## the lower drawer is shut (a click on an open drawer files); blank tray at zero; copyholder with
+## nothing in hand and nothing clipped. Every other pick is never inert.
+func _is_inert(action: String) -> bool:
+	var gs = _gs()
+	if gs == null:
+		return false
+	match action:
+		"inbox":
+			return _stack_ids("inbox").is_empty()
+		"read_stack":
+			return _stack_ids("read_stack").is_empty() and not holding()
+		"carbon_spot":
+			return _stack_ids("carbon_spot").is_empty() and not _lower_drawer_open()
+		"blank_tray":
+			return int(gs.tray_count) <= 0
+		"copyholder":
+			return not holding() and String(gs.loc.copyholder) == ""
+	return false
+
+
+func _lower_drawer_open() -> bool:
+	return desk != null and desk.has_method("drawer_open") and bool(desk.drawer_open("lower"))
 
 
 func _blocked() -> bool:
